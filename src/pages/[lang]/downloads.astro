@@ -1,0 +1,24 @@
+---
+import Base from '../../layouts/Base.astro';
+import DownloadTile from '../../components/DownloadTile.astro';
+import { PROJECTS, type Lang } from '../../config';
+import { t } from '../../i18n';
+import { langPaths } from '../../lib/paths';
+
+export const getStaticPaths = langPaths;
+const lang = Astro.params.lang as Lang;
+---
+
+<Base lang={lang} path="downloads" title={t(lang, 'nav.downloads')}>
+  <div class="wrap">
+    <div class="doc-head">
+      <div>
+        <h1>{t(lang, 'nav.downloads')}</h1>
+        <p>{t(lang, 'downloads.intro')}</p>
+      </div>
+    </div>
+    <div class="dl-grid">
+      {PROJECTS.map((p) => <DownloadTile lang={lang} project={p} />)}
+    </div>
+  </div>
+</Base>

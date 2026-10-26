@@ -1,0 +1,82 @@
+---
+import '../styles/global.css';
+import PixelIcon from '../components/PixelIcon.astro';
+import { SITE, type Lang } from '../config';
+import { t } from '../i18n';
+import { href, asset } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+  title?: string;
+  description?: string;
+  /** Pfad ohne Sprache, z.B. "downloads" - für Sprachumschalter und aktive Navigation */
+  path: string;
+}
+
+const { lang, title, description = t(lang, 'hero.text'), path } = Astro.props;
+const other: Lang = lang === 'de' ? 'en' : 'de';
+const pageTitle = title ? `${title} · ${SITE.name}` : SITE.name;
+const section = path.split('/')[0];
+const nav = [
+  { path: '', match: ['', 'docs'], label: t(lang, 'nav.projects') },
+  { path: 'downloads', match: ['downloads'], label: t(lang, 'nav.downloads') },
+  { path: 'report', match: ['report'], label: t(lang, 'nav.report') },
+];
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta name="theme-color" content="#121216" />
+    <link rel="icon" href={asset('favicon.svg')} type="image/svg+xml" />
+    <link rel="alternate" hreflang={other} href={href(other, path)} />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href={href(lang)}>
+          <PixelIcon name="grass" />
+          <span><b>MR</b>{SITE.name.slice(2)}</span>
+        </a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="nav">☰</button>
+        <nav class="nav" id="nav">
+          {
+            nav.map((n) => (
+              <a href={href(lang, n.path)} aria-current={n.match.includes(section) ? 'page' : undefined}>
+                {n.label}
+              </a>
+            ))
+          }
+          <a class="lang" href={href(other, path)} hreflang={other} lang={other}>{t(lang, 'lang.switch')}</a>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="wrap">
+        <span>© {new Date().getFullYear()} {SITE.name} · {t(lang, 'footer.text')}</span>
+        <span class="footer-links">
+          <a href={href(lang, 'imprint')}>{t(lang, 'footer.imprint')}</a>
+          <a href={href(lang, 'privacy')}>{t(lang, 'footer.privacy')}</a>
+          <a href={`https://github.com/${SITE.owner}`} target="_blank" rel="noopener">GitHub</a>
+        </span>
+      </div>
+    </footer>
+    <script>
+      const btn = document.querySelector('.menu-toggle');
+      const nav = document.getElementById('nav');
+      btn?.addEventListener('click', () => {
+        const open = nav!.classList.toggle('open');
+        btn.setAttribute('aria-expanded', String(open));
+      });
+    </script>
+  </body>
+</html>

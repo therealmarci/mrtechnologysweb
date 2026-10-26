@@ -1,0 +1,104 @@
+---
+import Base from '../../../../layouts/Base.astro';
+import PixelIcon from '../../../../components/PixelIcon.astro';
+import DownloadTile from '../../../../components/DownloadTile.astro';
+import { LANGS, PROJECTS, SITE, repoUrl, type DocPage, type Lang, type Project } from '../../../../config';
+import { t } from '../../../../i18n';
+import { getFile } from '../../../../lib/github';
+import { renderDoc } from '../../../../lib/markdown';
+import { href } from '../../../../lib/url';
+
+export async function getStaticPaths() {
+  const paths = [];
+  for (const project of PROJECTS) {
+    // nur Seiten, deren Datei es im Repo gibt
+    const docs: DocPage[] = [];
+    for (const d of project.docs) if (await getFile(project, d.file)) docs.push(d);
+    for (const lang of LANGS) {
+      for (const doc of docs) {
+        paths.push({
+          params: { lang, slug: project.slug, page: doc.id === 'guide' ? undefined : doc.id },
+          props: { project, doc, docs },
+        });
+      }
+    }
+  }
+  return paths;
+}
+
+interface Props {
+  project: Project;
+  doc: DocPage;
+  docs: DocPage[];
+}
+const { project: p, doc, docs } = Astro.props;
+const lang = Astro.params.lang as Lang;
+const pagePath = (d: DocPage) => `docs/${p.slug}${d.id === 'guide' ? '' : `/${d.id}`}`;
+
+const en = lang === 'en' && doc.fileEn ? await getFile(p, doc.fileEn) : undefined;
+const file = en ? doc.fileEn! : doc.file;
+const src = en ?? (await getFile(p, doc.file))!;
+const internal = Object.fromEntries(
+  docs.flatMap((d) => [d.file, d.fileEn].filter(Boolean).map((f) => [f!, href(lang, pagePath(d))])),
+);
+const { html, toc } = renderDoc(src, { owner: SITE.owner, repo: p.repo, file, internal });
+const showNotice = lang === 'en' && !en;
+---
+
+<Base lang={lang} path={pagePath(doc)} title={`${p.name} - ${doc.label[lang]}`} description={p.tagline[lang]}>
+  <div class="wrap">
+    <div class="doc-head">
+      <div class="card-icon"><PixelIcon name={p.icon} /></div>
+      <div>
+        <h1>{p.name}</h1>
+        <p>{p.kind[lang]} · {p.tagline[lang]}</p>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label={p.name}>
+      {
+        docs.map((d) => (
+          <a href={href(lang, pagePath(d))} aria-current={d.id === doc.id ? 'page' : undefined}>
+            {d.label[lang]}
+          </a>
+        ))
+      }
+      <a href={`${repoUrl(p)}/issues`} target="_blank" rel="noopener">Issues ↗</a>
+      <a href={repoUrl(p)} target="_blank" rel="noopener">GitHub ↗</a>
+    </nav>
+
+    <div class="doc-layout">
+      <article class="prose">
+        {showNotice && <p class="notice" lang="en">{t(lang, 'doc.onlyGerman')}</p>}
+        <Fragment set:html={html} />
+        <p class="muted" style="margin-top:3em">
+          {t(lang, 'doc.source')}:{' '}
+          <a href={`${repoUrl(p)}/blob/HEAD/${file}`} target="_blank" rel="noopener">{p.repo}/{file} ↗</a>
+        </p>
+      </article>
+
+      <aside class="doc-aside">
+        {doc.id === 'guide' && <DownloadTile lang={lang} project={p} compact />}
+        {
+          toc.length > 0 && (
+            <details class="panel toc" open>
+              <summary>{t(lang, 'doc.onThisPage')}</summary>
+              <ul>
+                {toc.map((e) => (
+                  <li class={`d${e.depth}`}>
+                    <a href={`#${e.id}`}>{e.text}</a>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )
+        }
+      </aside>
+    </div>
+  </div>
+</Base>
+
+<script>
+  // Auf dem Handy steht das Inhaltsverzeichnis über dem Text - dort eingeklappt starten
+  if (matchMedia('(max-width: 960px)').matches) document.querySelector('.toc')?.removeAttribute('open');
+</script>

@@ -1,0 +1,45 @@
+---
+import PixelIcon from './PixelIcon.astro';
+import type { Lang, Project } from '../config';
+import { t } from '../i18n';
+import { latest } from '../lib/github';
+import { href } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+  project: Project;
+}
+const { lang, project: p } = Astro.props;
+const docs = href(lang, `docs/${p.slug}`);
+const versions = await Promise.all(p.variants.map((v) => latest(p, v)));
+const newest = versions.flatMap((v) => [v.pre, v.stable]).filter((r) => r !== undefined)[0];
+---
+
+<article class="panel card">
+  <div class="card-head">
+    <div class="card-icon"><PixelIcon name={p.icon} /></div>
+    <div>
+      <h3><a href={docs}>{p.name}</a></h3>
+      <span class="kind">{p.kind[lang]}</span>
+    </div>
+  </div>
+  <p>{p.tagline[lang]}</p>
+  <div class="card-meta">
+    {
+      newest ? (
+        <>
+          <span class="badge badge-mc">MC {newest.mc}</span>
+          <span class={`badge ${newest.prerelease ? 'badge-pre' : 'badge-stable'}`}>
+            v{newest.version} · {t(lang, newest.prerelease ? 'release.pre' : 'release.stable')}
+          </span>
+        </>
+      ) : (
+        <span class="badge muted">{t(lang, 'card.noRelease')}</span>
+      )
+    }
+  </div>
+  <div class="card-actions">
+    <a class="btn btn-small" href={docs}>{t(lang, 'card.docs')}</a>
+    {newest && <a class="btn btn-small btn-grass" href={href(lang, 'downloads') + `#${p.slug}`}>{t(lang, 'card.download')}</a>}
+  </div>
+</article>

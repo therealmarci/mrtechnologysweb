@@ -1,0 +1,11 @@
+---
+// Wert aus LEGAL oder ein markierter Platzhalter, solange er fehlt
+interface Props {
+  value: string;
+  label: string;
+}
+const { value, label } = Astro.props;
+if (!value) console.warn(`[legal] Angabe fehlt: ${label} (src/config.ts -> LEGAL)`);
+---
+
+{value ? value : <mark class="todo">[{label}]</mark>}

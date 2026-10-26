@@ -1,0 +1,66 @@
+---
+import Base from '../../layouts/Base.astro';
+import Fill from '../../components/Fill.astro';
+import { LEGAL, SITE, type Lang } from '../../config';
+import { t } from '../../i18n';
+import { href } from '../../lib/url';
+import { langPaths } from '../../lib/paths';
+
+export const getStaticPaths = langPaths;
+const lang = Astro.params.lang as Lang;
+const de = lang === 'de';
+const mail = LEGAL.email;
+---
+
+<Base lang={lang} path="imprint" title={t(lang, 'footer.imprint')}>
+  <div class="wrap legal">
+    <div class="doc-head">
+      <h1>{t(lang, 'footer.imprint')}</h1>
+    </div>
+    <article class="prose">
+      {!de && <p class="notice">{t(lang, 'legal.germanOnly')}</p>}
+
+      <h2>{de ? 'Medieninhaber und Herausgeber' : 'Media owner and publisher'}</h2>
+      <p>
+        <Fill value={LEGAL.name} label="Name" /><br />
+        {LEGAL.street && <>{LEGAL.street}<br /></>}
+        {LEGAL.city || LEGAL.addressNote[lang]}<br />
+        {LEGAL.country[lang]}
+      </p>
+      <p>
+        {de ? 'E-Mail' : 'Email'}: {mail ? <a href={`mailto:${mail}`}>{mail}</a> : <Fill value="" label="E-Mail" />}
+      </p>
+
+      <h2>{de ? 'Offenlegung nach § 25 MedienG' : 'Disclosure pursuant to § 25 Austrian Media Act'}</h2>
+      <p>
+        {
+          de
+            ? `${SITE.name} ist ein privates, nicht kommerzielles Hobbyprojekt. Grundlegende Richtung (Blattlinie): Informationen, Anleitungen und Downloads zu den eigenen Minecraft-Plugins und -Mods.`
+            : `${SITE.name} is a private, non-commercial hobby project. Editorial line: information, guides and downloads for the owner's own Minecraft plugins and mods.`
+        }
+      </p>
+
+      <h2>{de ? 'Haftung für Inhalte und Links' : 'Liability for content and links'}</h2>
+      <p>
+        {
+          de
+            ? 'Die Inhalte dieser Seite werden mit Sorgfalt erstellt; für Richtigkeit, Vollständigkeit und Aktualität wird keine Gewähr übernommen. Die Plugins und Mods werden unter der jeweils im Repository angegebenen Lizenz bereitgestellt. Für Inhalte externer Seiten, auf die verlinkt wird (insbesondere GitHub), sind ausschließlich deren Betreiber verantwortlich.'
+            : 'The content of this site is created with care; no guarantee is given for accuracy, completeness or timeliness. The plugins and mods are provided under the license stated in the respective repository. The operators of linked external sites (in particular GitHub) are solely responsible for their content.'
+        }
+      </p>
+
+      <h2>{de ? 'Marken' : 'Trademarks'}</h2>
+      <p>
+        {
+          de
+            ? 'Minecraft ist eine Marke von Mojang Synergies AB. Diese Seite ist kein offizielles Minecraft-Produkt und steht in keiner Verbindung zu Mojang oder Microsoft.'
+            : 'Minecraft is a trademark of Mojang Synergies AB. This site is not an official Minecraft product and is not affiliated with Mojang or Microsoft.'
+        }
+      </p>
+
+      <p class="muted">
+        <a href={href(lang, 'privacy')}>{t(lang, 'footer.privacy')} →</a>
+      </p>
+    </article>
+  </div>
+</Base>

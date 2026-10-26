@@ -1,0 +1,117 @@
+---
+import Base from '../../layouts/Base.astro';
+import Fill from '../../components/Fill.astro';
+import { LEGAL, type Lang } from '../../config';
+import { t, dateFmt } from '../../i18n';
+import { href } from '../../lib/url';
+import { langPaths } from '../../lib/paths';
+
+export const getStaticPaths = langPaths;
+const lang = Astro.params.lang as Lang;
+const de = lang === 'de';
+const mail = LEGAL.email;
+const ghPrivacy = 'https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement';
+---
+
+<Base lang={lang} path="privacy" title={t(lang, 'footer.privacy')}>
+  <div class="wrap legal">
+    <div class="doc-head">
+      <h1>{de ? 'Datenschutzerklärung' : 'Privacy policy'}</h1>
+    </div>
+    <article class="prose">
+      {!de && <p class="notice">{t(lang, 'legal.germanOnly')}</p>}
+
+      <h2>{de ? 'Kurz gesagt' : 'In short'}</h2>
+      <ul>
+        {
+          de ? (
+            <>
+              <li>Keine Cookies, kein Tracking, keine Analyse-Tools, keine Werbung.</li>
+              <li>Schriften und alle Inhalte werden von dieser Seite selbst geladen - keine Google Fonts oder andere Drittanbieter.</li>
+              <li>Das Formular „Fehler melden“ sendet nichts an uns. Es läuft nur in deinem Browser und öffnet ein Issue auf GitHub.</li>
+              <li>Gehostet wird die Seite bei GitHub Pages. Dabei verarbeitet GitHub technisch notwendige Verbindungsdaten.</li>
+            </>
+          ) : (
+            <>
+              <li>No cookies, no tracking, no analytics, no advertising.</li>
+              <li>Fonts and all content are served by this site itself - no Google Fonts or other third parties.</li>
+              <li>The "Report a bug" form sends nothing to us. It runs only in your browser and opens an issue on GitHub.</li>
+              <li>The site is hosted on GitHub Pages. GitHub processes technically necessary connection data.</li>
+            </>
+          )
+        }
+      </ul>
+
+      <h2>{de ? 'Verantwortlicher' : 'Controller'}</h2>
+      <p>
+        <Fill value={LEGAL.name} label="Name" /><br />
+        {LEGAL.street && <>{LEGAL.street}<br /></>}
+        {LEGAL.city ? `${LEGAL.city}, ${LEGAL.country[lang]}` : LEGAL.addressNote[lang]}<br />
+        {de ? 'E-Mail' : 'Email'}: {mail ? <a href={`mailto:${mail}`}>{mail}</a> : <Fill value="" label="E-Mail" />}
+      </p>
+
+      <h2>{de ? 'Hosting über GitHub Pages' : 'Hosting on GitHub Pages'}</h2>
+      {
+        de ? (
+          <p>
+            Diese Website wird über GitHub Pages bereitgestellt, einen Dienst der GitHub, Inc., 88 Colin P. Kelly Jr. Street,
+            San Francisco, CA 94107, USA. Beim Aufruf verarbeitet GitHub deine IP-Adresse sowie technische Daten wie Zeitpunkt,
+            aufgerufene Seite, Browser und Betriebssystem, um die Seite auszuliefern und gegen Missbrauch zu schützen
+            (Server-Logfiles). Rechtsgrundlage ist unser berechtigtes Interesse an einer sicheren und zuverlässigen
+            Bereitstellung der Website (Art. 6 Abs. 1 lit. f DSGVO). Wir selbst haben keinen Zugriff auf diese Logdaten.
+            GitHub ist unter dem EU-US Data Privacy Framework zertifiziert, das ein angemessenes Datenschutzniveau für die
+            Übermittlung in die USA sicherstellt (Art. 45 DSGVO). Details: <a href={ghPrivacy} target="_blank" rel="noopener">GitHub-Datenschutzerklärung</a>.
+          </p>
+        ) : (
+          <p>
+            This website is served via GitHub Pages, a service of GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco,
+            CA 94107, USA. When you visit, GitHub processes your IP address and technical data such as time, requested page,
+            browser and operating system in order to deliver the site and protect it against abuse (server log files). The
+            legal basis is our legitimate interest in providing the website securely and reliably (Art. 6(1)(f) GDPR). We have
+            no access to these logs ourselves. GitHub is certified under the EU-US Data Privacy Framework, which ensures an
+            adequate level of protection for transfers to the USA (Art. 45 GDPR). Details: <a href={ghPrivacy} target="_blank" rel="noopener">GitHub privacy statement</a>.
+          </p>
+        )
+      }
+
+      <h2>Downloads</h2>
+      <p>
+        {
+          de
+            ? 'Die Plugin- und Mod-Dateien liegen in den GitHub Releases der jeweiligen Projekte. Beim Klick auf „Download“ lädt dein Browser die Datei direkt von GitHub; dabei gilt ebenfalls die Datenschutzerklärung von GitHub. Die angezeigten Downloadzahlen sind anonyme Gesamtzähler von GitHub.'
+            : 'The plugin and mod files are stored in the GitHub Releases of each project. When you click "Download", your browser fetches the file directly from GitHub; GitHub\'s privacy statement applies. The download numbers shown are anonymous totals provided by GitHub.'
+        }
+      </p>
+
+      <h2>{de ? 'Fehler melden' : 'Reporting bugs'}</h2>
+      <p>
+        {
+          de
+            ? 'Das Formular wird ausschließlich in deinem Browser verarbeitet. Eine hochgeladene Konfigurationsdatei wird lokal gelesen, Kommentare und geheime Werte werden lokal entfernt; an uns wird nichts übertragen. Erst wenn du auf „Weiter zu GitHub“ klickst, öffnet sich GitHub mit deinen Angaben in der Adresse. Ein Issue legst du dort selbst mit deinem GitHub-Konto an - es ist öffentlich sichtbar. Für die Verarbeitung auf GitHub ist GitHub verantwortlich; Inhalte deines Issues verarbeiten wir zur Bearbeitung deiner Meldung (Art. 6 Abs. 1 lit. f DSGVO).'
+            : 'The form is processed entirely in your browser. An uploaded config file is read locally, and comments and secret values are removed locally; nothing is sent to us. Only when you click "Continue to GitHub" does GitHub open with your input in the address. You create the issue there yourself with your GitHub account - it is publicly visible. GitHub is responsible for processing on GitHub; we process the content of your issue to handle your report (Art. 6(1)(f) GDPR).'
+        }
+      </p>
+
+      <h2>{de ? 'Externe Links' : 'External links'}</h2>
+      <p>
+        {
+          de
+            ? 'Links zu GitHub und anderen Seiten öffnen fremde Websites. Erst beim Anklicken werden dabei Daten an deren Betreiber übertragen; es gelten deren Datenschutzbestimmungen.'
+            : 'Links to GitHub and other sites open third-party websites. Data is only transferred to their operators when you click; their privacy policies apply.'
+        }
+      </p>
+
+      <h2>{de ? 'Deine Rechte' : 'Your rights'}</h2>
+      <p>
+        {
+          de
+            ? 'Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch (Art. 15-21 DSGVO). Wende dich dazu an die oben genannte E-Mail-Adresse. Außerdem kannst du dich bei der Aufsichtsbehörde beschweren - in Österreich ist das die Datenschutzbehörde, Barichgasse 40-42, 1030 Wien, '
+            : 'You have the right of access, rectification, erasure, restriction of processing, data portability and objection (Art. 15-21 GDPR). Please contact the email address above. You may also lodge a complaint with the supervisory authority - in Austria, the Datenschutzbehörde, Barichgasse 40-42, 1030 Vienna, '
+        }
+        <a href="https://www.dsb.gv.at" target="_blank" rel="noopener">dsb.gv.at</a>.
+      </p>
+
+      <p class="muted">{de ? 'Stand' : 'Last updated'}: {dateFmt(lang, LEGAL.updated)} · <a href={href(lang, 'imprint')}>{t(lang, 'footer.imprint')} →</a></p>
+    </article>
+  </div>
+</Base>

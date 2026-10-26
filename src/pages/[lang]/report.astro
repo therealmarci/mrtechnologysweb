@@ -1,0 +1,269 @@
+---
+import Base from '../../layouts/Base.astro';
+import { PROJECTS, repoUrl, type Lang } from '../../config';
+import { t } from '../../i18n';
+import { getReleases } from '../../lib/github';
+import { langPaths } from '../../lib/paths';
+
+export const getStaticPaths = langPaths;
+const lang = Astro.params.lang as Lang;
+
+const data = {
+  projects: await Promise.all(
+    PROJECTS.map(async (p) => ({
+      slug: p.slug,
+      url: repoUrl(p),
+      forms: p.issueForms,
+      versions: (await getReleases(p)).map((r) => r.tag),
+    })),
+  ),
+  text: {
+    bug: [t(lang, 'report.textBug'), t(lang, 'report.textBugHint')],
+    feature: [t(lang, 'report.textFeature'), t(lang, 'report.textFeatureHint')],
+    change: [t(lang, 'report.textChange'), t(lang, 'report.textChangeHint')],
+  },
+  msg: {
+    redacted: t(lang, 'report.configRedacted'),
+    tooBig: t(lang, 'report.configTooBig'),
+    clipboard: t(lang, 'report.configClipboard'),
+  },
+  // Überschriften für Repos ohne Issue-Forms (Text landet dann im Issue-Body)
+  body:
+    lang === 'de'
+      ? { steps: 'Schritte zum Nachstellen', config: 'Config' }
+      : { steps: 'Steps to reproduce', config: 'Config' },
+};
+const types = [
+  { id: 'bug', label: t(lang, 'report.bug'), hint: t(lang, 'report.bugHint') },
+  { id: 'feature', label: t(lang, 'report.feature'), hint: t(lang, 'report.featureHint') },
+  { id: 'change', label: t(lang, 'report.change'), hint: t(lang, 'report.changeHint') },
+];
+---
+
+<Base lang={lang} path="report" title={t(lang, 'nav.report')}>
+  <div class="wrap">
+    <div class="doc-head">
+      <div>
+        <h1>{t(lang, 'report.title')}</h1>
+        <p>{t(lang, 'report.intro')}</p>
+      </div>
+    </div>
+
+    <div class="report-grid">
+      <form class="panel form" id="report" novalidate>
+        <div class="field">
+          <label for="project">{t(lang, 'report.project')}</label>
+          <select id="project" name="project">
+            {PROJECTS.map((p) => <option value={p.slug}>{p.name}</option>)}
+          </select>
+        </div>
+
+        <fieldset class="field">
+          <legend>{t(lang, 'report.type')}</legend>
+          <div class="choices">
+            {
+              types.map((ty, i) => (
+                <label class="choice">
+                  <input type="radio" name="type" value={ty.id} checked={i === 0} />
+                  <span>
+                    <b>{ty.label}</b>
+                    <small>{ty.hint}</small>
+                  </span>
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="subject">{t(lang, 'report.subject')}</label>
+          <input type="text" id="subject" name="subject" required placeholder={t(lang, 'report.subjectHint')} />
+        </div>
+
+        <div class="field">
+          <label for="text" id="text-label">{t(lang, 'report.textBug')}</label>
+          <textarea id="text" name="text" required placeholder={t(lang, 'report.textBugHint')}></textarea>
+        </div>
+
+        <div class="field-row bug-only">
+          <div class="field">
+            <label for="version">{t(lang, 'report.version')}</label>
+            <select id="version" name="version"></select>
+          </div>
+          <div class="field">
+            <label for="server">{t(lang, 'report.server')}</label>
+            <input type="text" id="server" name="server" placeholder="Paper 26.3 Build 200" />
+          </div>
+        </div>
+
+        <div class="field bug-only">
+          <span class="label-like"><b>{t(lang, 'report.config')}</b></span>
+          <label class="drop" id="drop">
+            <input type="file" id="config" accept=".yml,.yaml,.json,.properties,.toml,.txt,.conf" />
+            <span>📄 {lang === 'de' ? 'Datei auswählen oder hierher ziehen' : 'Choose a file or drop it here'}</span>
+          </label>
+          <div id="config-info" hidden>
+            <div class="config-file">
+              <b id="config-name"></b>
+              <span class="badge badge-stable" id="config-count"></span>
+              <button type="button" class="remove" id="config-remove">{t(lang, 'report.configRemove')}</button>
+            </div>
+            <small>{t(lang, 'report.configPreview')}</small>
+            <pre class="config-preview" id="config-preview"></pre>
+          </div>
+          <small>{t(lang, 'report.configHint')}</small>
+        </div>
+
+        <p class="form-msg" id="msg" hidden></p>
+
+        <button class="btn btn-grass" type="submit">{t(lang, 'report.submit')} ↗</button>
+      </form>
+
+      <aside class="side">
+        <section class="panel">
+          <h2 class="side-title">{t(lang, 'report.search')}</h2>
+          <p class="muted">{t(lang, 'report.searchText')}</p>
+          <a class="btn btn-small" id="search" href="#" target="_blank" rel="noopener">
+            {t(lang, 'report.openIssues')} ↗
+          </a>
+        </section>
+        <section class="panel">
+          <h2 class="side-title">{t(lang, 'report.tips')}</h2>
+          <ul class="side-list">
+            <li>{t(lang, 'report.tip1')}</li>
+            <li>{t(lang, 'report.tip2')}</li>
+            <li>{t(lang, 'report.tip3')}</li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </div>
+  <script type="application/json" id="report-data" set:html={JSON.stringify(data)} />
+</Base>
+
+<script>
+  import { redact } from '../../lib/redact';
+
+  type Type = 'bug' | 'feature' | 'change';
+  const data = JSON.parse(document.getElementById('report-data')!.textContent!);
+  const form = document.getElementById('report') as HTMLFormElement;
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const project = $<HTMLSelectElement>('project');
+  const version = $<HTMLSelectElement>('version');
+  const subject = $<HTMLInputElement>('subject');
+  const text = $<HTMLTextAreaElement>('text');
+  const server = $<HTMLInputElement>('server');
+  const file = $<HTMLInputElement>('config');
+  const msg = $<HTMLParagraphElement>('msg');
+
+  // Dateinamen und Feld-IDs der Issue-Forms in den Repos (.github/ISSUE_TEMPLATE)
+  const TEMPLATES: Record<Type, { file: string; text: string }> = {
+    bug: { file: 'bug_report.yml', text: 'what' },
+    feature: { file: 'feature_request.yml', text: 'idea' },
+    change: { file: 'feature_change.yml', text: 'wanted' },
+  };
+  const MAX_URL = 7500; // GitHub lehnt deutlich längere Links ab
+  let config: { name: string; text: string } | null = null;
+
+  const current = () => data.projects.find((p: any) => p.slug === project.value);
+  const type = () => (form.elements.namedItem('type') as RadioNodeList).value as Type;
+
+  function show(text: string, error = false) {
+    msg.textContent = text;
+    msg.classList.toggle('error', error);
+    msg.hidden = !text;
+  }
+
+  function fillVersions() {
+    version.replaceChildren(...[...current().versions, '?'].map((v: string) => new Option(v, v)));
+  }
+
+  function refresh() {
+    const [label, hint] = data.text[type()];
+    $('text-label').textContent = label;
+    text.placeholder = hint;
+    const q = subject.value.trim();
+    $<HTMLAnchorElement>('search').href = `${current().url}/issues?q=${encodeURIComponent(`is:issue ${q}`.trim())}`;
+    form.querySelectorAll<HTMLElement>('.bug-only').forEach((el) => (el.hidden = type() !== 'bug'));
+  }
+
+  async function loadConfig(f: File | undefined) {
+    show('');
+    if (!f) return;
+    if (f.size > 200 * 1024) {
+      file.value = '';
+      return show(data.msg.tooBig, true);
+    }
+    const { text: clean, count } = redact(await f.text());
+    config = { name: f.name, text: clean };
+    $('config-name').textContent = f.name;
+    $('config-count').textContent = `${count} ${data.msg.redacted}`;
+    $('config-preview').textContent = clean;
+    $('config-info').hidden = false;
+    $('drop').hidden = true;
+  }
+
+  function clearConfig() {
+    config = null;
+    file.value = '';
+    $('config-info').hidden = true;
+    $('drop').hidden = false;
+  }
+
+  function issueUrl(withConfig: boolean) {
+    const p = current();
+    const bug = type() === 'bug';
+    const cfg = bug && withConfig && config ? config : null;
+    const params = new URLSearchParams({ title: subject.value.trim() });
+    if (p.forms) {
+      // Issue-Forms übernehmen Werte per Query-Parameter mit der Feld-ID
+      params.set('template', TEMPLATES[type()].file);
+      params.set(TEMPLATES[type()].text, text.value.trim());
+      if (bug) {
+        params.set('version', version.value);
+        params.set('server', server.value.trim());
+        if (cfg) params.set('config', `# ${cfg.name}\n${cfg.text}`);
+      }
+    } else {
+      const fence = '`'.repeat(3);
+      const lines = [];
+      if (bug) lines.push(`**Version:** ${version.value}`, `**Server:** ${server.value.trim()}`, '');
+      lines.push(text.value.trim(), '');
+      if (cfg) lines.push(`### ${data.body.config} (${cfg.name})`, `${fence}yaml`, cfg.text, fence);
+      params.set('body', lines.join('\n'));
+    }
+    return `${p.url}/issues/new?${params}`;
+  }
+
+  project.addEventListener('change', () => {
+    fillVersions();
+    refresh();
+  });
+  form.addEventListener('change', (e) => (e.target as HTMLInputElement).name === 'type' && refresh());
+  subject.addEventListener('input', refresh);
+  file.addEventListener('change', () => loadConfig(file.files?.[0]));
+  $('config-remove').addEventListener('click', clearConfig);
+
+  const drop = $('drop');
+  drop.addEventListener('dragover', () => drop.classList.add('over'));
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', () => drop.classList.remove('over'));
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!form.reportValidity()) return;
+    let url = issueUrl(true);
+    if (url.length > MAX_URL && config) {
+      // zu lang für einen Link: Config in die Zwischenablage, Issue ohne Config öffnen
+      url = issueUrl(false);
+      navigator.clipboard?.writeText(config.text).catch(() => {});
+      show(data.msg.clipboard);
+    }
+    window.open(url, '_blank', 'noopener');
+  });
+
+  const pre = new URLSearchParams(location.search).get('p');
+  if (pre && data.projects.some((p: any) => p.slug === pre)) project.value = pre;
+  fillVersions();
+  refresh();
+</script>

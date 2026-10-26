@@ -1,0 +1,59 @@
+---
+import Base from '../../layouts/Base.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import PixelIcon from '../../components/PixelIcon.astro';
+import { PROJECTS, type Lang } from '../../config';
+import { t, numFmt } from '../../i18n';
+import { getReleases, totalDownloads } from '../../lib/github';
+import { href } from '../../lib/url';
+import { langPaths } from '../../lib/paths';
+
+export const getStaticPaths = langPaths;
+const lang = Astro.params.lang as Lang;
+
+const downloads = (await Promise.all(PROJECTS.map(totalDownloads))).reduce((a, b) => a + b, 0);
+const mcVersions = [...new Set((await Promise.all(PROJECTS.map(getReleases))).flat().map((r) => r.mc))].sort(
+  (a, b) => b.localeCompare(a, undefined, { numeric: true }),
+);
+---
+
+<Base lang={lang} path="">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <h1>{t(lang, 'hero.title')} <em>{t(lang, 'hero.titleEm')}</em></h1>
+        <p>{t(lang, 'hero.text')}</p>
+        <div class="hero-actions">
+          <a class="btn btn-grass" href={href(lang, 'downloads')}>⬇ {t(lang, 'hero.cta')}</a>
+          <a class="btn" href="#projects">{t(lang, 'hero.cta2')}</a>
+        </div>
+        <div class="stats">
+          <div><strong>{PROJECTS.length}</strong><span>{t(lang, 'stats.projects')}</span></div>
+          <div><strong>{numFmt(lang, downloads)}</strong><span>{t(lang, 'stats.downloads')}</span></div>
+          {mcVersions[0] && <div><strong>{mcVersions[0]}</strong><span>{t(lang, 'stats.mc')}</span></div>}
+        </div>
+      </div>
+      <div class="hero-blocks">
+        {
+          PROJECTS.map((p) => (
+            <a href={href(lang, `docs/${p.slug}`)} title={p.name} aria-label={p.name}>
+              <PixelIcon name={p.icon} />
+            </a>
+          ))
+        }
+        <a href={href(lang, 'report')} title={t(lang, 'nav.report')} aria-label={t(lang, 'nav.report')}>
+          <PixelIcon name="grass" />
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="projects">
+    <div class="wrap">
+      <h2 class="section-title">{t(lang, 'nav.projects')}</h2>
+      <div class="cards">
+        {PROJECTS.map((p) => <ProjectCard lang={lang} project={p} />)}
+      </div>
+    </div>
+  </section>
+</Base>
