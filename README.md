@@ -54,7 +54,7 @@ Ohne Token sind 60 GitHub-API-Anfragen pro Stunde erlaubt, das reicht für ein p
    - jede Nacht
    - auf Zuruf
 
-Mit eigener Domain unter *Settings → Pages → Custom domain* eintragen. Den Basis-Pfad stellt der Workflow automatisch um.
+**Domain:** `mrtechnology.marcelr.at`. Dafür ist ein DNS-Eintrag `mrtechnology CNAME therealmarci.github.io.` nötig, und die Domain steht unter *Settings → Pages → Custom domain*. Den Basis-Pfad stellt der Workflow automatisch um.
 
 ### Sofort aktualisieren, wenn ein Plugin released wird
 
