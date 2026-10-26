@@ -63,7 +63,10 @@ const selectId = `mc-${p.slug}${compact ? '-c' : ''}`;
           <label for={selectId}>Minecraft</label>
           <select id={selectId} data-dl-select disabled={mcVersions.length < 2}>
             {mcVersions.map((mc) => (
-              <option value={mc}>{mc}</option>
+              <option value={mc}>
+                {mc}
+                {!releases.some((r) => r.mc === mc && !r.prerelease) && ` (${t(lang, 'release.pre')})`}
+              </option>
             ))}
           </select>
         </div>

@@ -49,24 +49,17 @@ Ohne Token sind 60 GitHub-API-Anfragen pro Stunde erlaubt, das reicht für ein p
 
 1. Das Repo `therealmarci/mrtechnologysweb` anlegen und pushen.
 2. Unter *Settings → Pages → Source* **GitHub Actions** auswählen.
-3. Fertig. [deploy.yml](.github/workflows/deploy.yml) baut die Seite in drei Fällen:
-   - bei jedem Push auf `main`
-   - jede Nacht
-   - auf Zuruf
+3. Fertig. [deploy.yml](.github/workflows/deploy.yml) baut die Seite in diesen Fällen:
+   - bei jedem Push auf `main` und auf Zuruf (*Actions → Deploy → Run workflow*)
+   - **alle 15 Minuten, wenn sich bei einem Projekt etwas geändert hat.** Geprüft werden neue oder geänderte Releases und neue Commits auf dem Standard-Branch (Doku). Ohne Änderung wird nicht gebaut.
+   - jede Nacht, wegen der Downloadzahlen
 
 **Domain:** `mrtechnology.marcelr.at`. Dafür ist ein DNS-Eintrag `mrtechnology CNAME therealmarci.github.io.` nötig, und die Domain steht unter *Settings → Pages → Custom domain*. Den Basis-Pfad stellt der Workflow automatisch um.
 
-### Sofort aktualisieren, wenn ein Plugin released wird
+### Neue Releases und neue Minecraft-Versionen
 
-In jedem Plugin-Repo am Ende von `release.yml` diesen Schritt ergänzen. Dafür ist ein Secret `WEB_DISPATCH_TOKEN` nötig: ein Fine-grained PAT mit Zugriff auf `mrtechnologysweb` und der Berechtigung *Contents: read & write*.
+In den Plugin-Repos ist dafür nichts nötig. Ein neues Release erscheint nach spätestens etwa 15 Minuten, je nach Auslastung bei GitHub manchmal etwas später.
 
-```yaml
-      - name: Website aktualisieren
-        if: env.WEB_DISPATCH_TOKEN != ''
-        env:
-          WEB_DISPATCH_TOKEN: ${{ secrets.WEB_DISPATCH_TOKEN }}
-          GH_TOKEN: ${{ secrets.WEB_DISPATCH_TOKEN }}
-        run: gh api repos/therealmarci/mrtechnologysweb/dispatches -f event_type=release
-```
+Eine neue MC-Version (Tag z.B. `mc26.4-v0.1.0`) taucht automatisch oben im Dropdown der Download-Kachel auf und ist vorausgewählt. Solange es für diese MC-Version nur Vorabversionen gibt, steht im Dropdown „(Vorabversion)“, und der Download-Button ist gelb. Ältere MC-Versionen bleiben im Dropdown wählbar.
 
-Ohne diesen Schritt erscheint ein neues Release spätestens nach dem nächtlichen Build.
+Sofort statt nach bis zu 15 Minuten geht es optional mit einem `repository_dispatch` (Typ `release`). Dafür braucht jedes Plugin-Repo ein Token als Secret. Das ist im Moment nicht eingerichtet.

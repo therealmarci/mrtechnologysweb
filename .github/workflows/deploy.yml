@@ -1,11 +1,15 @@
-# Baut die Seite und veröffentlicht sie auf GitHub Pages. Läuft bei Push auf main, nachts (neue
-# Downloadzahlen, Doku-Änderungen) und sofort, wenn ein Plugin-Repo ein Release meldet (repository_dispatch).
+# Baut die Seite und veröffentlicht sie auf GitHub Pages.
+# - Push auf main, manueller Start, repository_dispatch: immer bauen
+# - alle 15 Minuten: nur bauen, wenn sich bei einem Projekt-Repo etwas geändert hat
+#   (Releases oder Stand des Standard-Branches -> neue Versionen, neue MC-Versionen, Doku)
+# - nachts: immer bauen (aktuelle Downloadzahlen)
 name: Deploy
 
 on:
   push:
     branches: [main]
   schedule:
+    - cron: '*/15 * * * *'
     - cron: '17 3 * * *'
   workflow_dispatch:
   repository_dispatch:
@@ -18,10 +22,49 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.decide.outputs.changed }}
+      fingerprint: ${{ steps.fp.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      # Fingerabdruck aller Projekt-Repos (Liste aus src/config.ts): Releases + letzter Commit
+      - id: fp
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          owner=$(grep -oP "owner: '\K[^']+" src/config.ts)
+          {
+            git rev-parse HEAD
+            for repo in $(grep -oP "repo: '\K[^']+" src/config.ts); do
+              gh api "repos/$owner/$repo/releases?per_page=100" \
+                --jq '.[] | select(.draft | not) | [.tag_name, .prerelease, .published_at, ([.assets[].name] | join(","))] | @tsv'
+              gh api "repos/$owner/$repo/commits/HEAD" --jq .sha
+            done
+          } > fingerprint.txt
+          echo "value=$(sha256sum fingerprint.txt | cut -c1-16)" >> "$GITHUB_OUTPUT"
+      - id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: fingerprint.txt
+          key: site-${{ steps.fp.outputs.value }}
+          lookup-only: true
+      - id: decide
+        run: |
+          if [ "${{ github.event.schedule }}" = '*/15 * * * *' ] && [ "${{ steps.cache.outputs.cache-hit }}" = 'true' ]; then
+            echo "Keine Änderung - kein Build."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: check
+    if: needs.check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,3 +93,14 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # erst nach erfolgreichem Deploy merken, welcher Stand online ist
+  remember:
+    needs: [check, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.check.outputs.fingerprint }}" > fingerprint.txt
+      - uses: actions/cache/save@v4
+        with:
+          path: fingerprint.txt
+          key: site-${{ needs.check.outputs.fingerprint }}
