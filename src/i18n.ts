@@ -7,7 +7,7 @@ const de = {
   'hero.title': 'Plugins & Mods',
   'hero.titleEm': 'für deinen Minecraft-Server',
   'hero.text':
-    'Kleine, durchdachte Erweiterungen für Paper und Fabric - alles einstellbar, alle Texte übersetzbar, Open Source auf GitHub.',
+    'Kleine, durchdachte Erweiterungen für Paper und Fabric - alles einstellbar, alle Texte übersetzbar, der Quellcode offen einsehbar auf GitHub.',
   'hero.cta': 'Zu den Downloads',
   'hero.cta2': 'Projekte ansehen',
   'stats.projects': 'Projekte',
@@ -81,7 +81,7 @@ const en: Record<Key, string> = {
   'hero.title': 'Plugins & mods',
   'hero.titleEm': 'for your Minecraft server',
   'hero.text':
-    'Small, well-crafted extensions for Paper and Fabric - fully configurable, every message translatable, open source on GitHub.',
+    'Small, well-crafted extensions for Paper and Fabric - fully configurable, every message translatable, source code available on GitHub.',
   'hero.cta': 'Go to downloads',
   'hero.cta2': 'Browse projects',
   'stats.projects': 'Projects',

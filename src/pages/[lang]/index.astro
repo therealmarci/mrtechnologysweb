@@ -1,7 +1,6 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
-import PixelIcon from '../../components/PixelIcon.astro';
 import { PROJECTS, type Lang } from '../../config';
 import { t, numFmt } from '../../i18n';
 import { getReleases, totalDownloads } from '../../lib/github';
@@ -19,7 +18,7 @@ const mcVersions = [...new Set((await Promise.all(PROJECTS.map(getReleases))).fl
 
 <Base lang={lang} path="">
   <section class="hero">
-    <div class="wrap hero-grid">
+    <div class="wrap">
       <div>
         <h1>{t(lang, 'hero.title')} <em>{t(lang, 'hero.titleEm')}</em></h1>
         <p>{t(lang, 'hero.text')}</p>
@@ -32,18 +31,6 @@ const mcVersions = [...new Set((await Promise.all(PROJECTS.map(getReleases))).fl
           <div><strong>{numFmt(lang, downloads)}</strong><span>{t(lang, 'stats.downloads')}</span></div>
           {mcVersions[0] && <div><strong>{mcVersions[0]}</strong><span>{t(lang, 'stats.mc')}</span></div>}
         </div>
-      </div>
-      <div class="hero-blocks">
-        {
-          PROJECTS.map((p) => (
-            <a href={href(lang, `docs/${p.slug}`)} title={p.name} aria-label={p.name}>
-              <PixelIcon name={p.icon} />
-            </a>
-          ))
-        }
-        <a href={href(lang, 'report')} title={t(lang, 'nav.report')} aria-label={t(lang, 'nav.report')}>
-          <PixelIcon name="grass" />
-        </a>
       </div>
     </div>
   </section>
