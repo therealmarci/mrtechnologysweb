@@ -39,7 +39,6 @@ const newest = versions.flatMap((v) => [v.pre, v.stable]).filter((r) => r !== un
     }
   </div>
   <div class="card-actions">
-    <a class="btn btn-small" href={docs}>{t(lang, 'card.docs')}</a>
-    {newest && <a class="btn btn-small btn-grass" href={href(lang, 'downloads') + `#${p.slug}`}>{t(lang, 'card.download')}</a>}
+    <a class="btn btn-small btn-grass" href={docs}>{t(lang, 'card.open')} →</a>
   </div>
 </article>
