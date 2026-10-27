@@ -2,7 +2,8 @@
 // Neues Projekt = neuer Eintrag in PROJECTS (Icon in src/lib/pixelart.ts ergänzen).
 
 export const SITE = {
-  name: 'MRtechnologys',
+  name: 'MRtechnology',
+  url: 'https://mrtechnology.marcelr.at',
   owner: 'therealmarci',
 };
 

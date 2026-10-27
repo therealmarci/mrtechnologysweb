@@ -1,4 +1,4 @@
-# MRtechnologys Website
+# MRtechnology Website
 
 Projektseite für MRsleep, MRchunks, MRadmin, MRpvp und MRtoolbar: Anleitungen, Downloads und Fehler melden.
 Statische Seite mit [Astro](https://astro.build), gehostet auf GitHub Pages. Deutsch unter `/de/`, Englisch unter `/en/`.

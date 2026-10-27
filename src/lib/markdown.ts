@@ -39,6 +39,8 @@ export interface LinkContext {
   file: string; // Pfad der gerenderten Datei im Repo, für relative Links
   /** Repo-Pfad -> interne URL (z.B. README.md -> /de/docs/mrsleep/) */
   internal: Record<string, string>;
+  /** absolute URL -> interne URL oder undefined (z.B. GitHub-Releases -> Downloads der Website) */
+  external?: (url: string) => string | undefined;
 }
 
 function resolveRepoPath(from: string, rel: string) {
@@ -51,6 +53,7 @@ function resolveRepoPath(from: string, rel: string) {
 }
 
 function rewriteHref(href: string, ctx: LinkContext, image: boolean) {
+  if (/^https?:/i.test(href)) return (!image && ctx.external?.(href)) || href;
   if (/^([a-z]+:|#|\/\/)/i.test(href)) return href;
   const [path, hash] = href.split('#');
   const full = resolveRepoPath(ctx.file, decodeURIComponent(path));

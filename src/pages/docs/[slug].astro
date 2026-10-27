@@ -1,0 +1,11 @@
+---
+// Kurzlink /docs/<projekt>/ -> Anleitung in der Sprache des Browsers
+import LangRedirect from '../../components/LangRedirect.astro';
+import { PROJECTS } from '../../config';
+import { href } from '../../lib/url';
+
+export const getStaticPaths = () => PROJECTS.map((p) => ({ params: { slug: p.slug } }));
+const { slug } = Astro.params;
+---
+
+<LangRedirect de={href('de', `docs/${slug}`)} en={href('en', `docs/${slug}`)} />

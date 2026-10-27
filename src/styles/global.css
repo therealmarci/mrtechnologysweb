@@ -1166,3 +1166,9 @@ mark.todo {
   padding: 0 4px;
   font-weight: 700;
 }
+
+/* per Link angesprungene Download-Kachel hervorheben (/download/<projekt>/) */
+.dl-tile:target {
+  outline: 3px solid var(--grass);
+  outline-offset: 2px;
+}

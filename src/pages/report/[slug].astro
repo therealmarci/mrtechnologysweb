@@ -1,0 +1,11 @@
+---
+// Kurzlink /report/<projekt>/ -> Formular "Fehler melden" mit vorausgewähltem Projekt
+import LangRedirect from '../../components/LangRedirect.astro';
+import { PROJECTS } from '../../config';
+import { href } from '../../lib/url';
+
+export const getStaticPaths = () => PROJECTS.map((p) => ({ params: { slug: p.slug } }));
+const { slug } = Astro.params;
+---
+
+<LangRedirect de={`${href('de', 'report')}?p=${slug}`} en={`${href('en', 'report')}?p=${slug}`} />

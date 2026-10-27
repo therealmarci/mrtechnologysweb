@@ -41,7 +41,20 @@ const src = en ?? (await getFile(p, doc.file))!;
 const internal = Object.fromEntries(
   docs.flatMap((d) => [d.file, d.fileEn].filter(Boolean).map((f) => [f!, href(lang, pagePath(d))])),
 );
-const { html, toc } = renderDoc(src, { owner: SITE.owner, repo: p.repo, file, internal });
+// Links auf GitHub-Releases/-Issues und Kurzlinks der Website führen auf die Seiten der Website
+const GITHUB_LINK = new RegExp(`^https://github\\.com/${SITE.owner}/([\\w.-]+)/(releases|issues)\\b`, 'i');
+const SITE_LINK = new RegExp(`^${SITE.url}/(download|report|docs)/([\\w-]+)`);
+const external = (url: string) => {
+  const gh = GITHUB_LINK.exec(url);
+  const site = SITE_LINK.exec(url);
+  const target = PROJECTS.find((x) => (gh ? x.repo === gh[1] : x.slug === site?.[2]));
+  if (!target) return undefined;
+  const kind = gh ? (gh[2].toLowerCase() === 'releases' ? 'download' : 'report') : site![1];
+  if (kind === 'download') return `${href(lang, 'downloads')}#${target.slug}`;
+  if (kind === 'report') return `${href(lang, 'report')}?p=${target.slug}`;
+  return href(lang, `docs/${target.slug}`);
+};
+const { html, toc } = renderDoc(src, { owner: SITE.owner, repo: p.repo, file, internal, external });
 const showNotice = lang === 'en' && !en;
 ---
 
@@ -63,7 +76,7 @@ const showNotice = lang === 'en' && !en;
           </a>
         ))
       }
-      <a href={`${repoUrl(p)}/issues`} target="_blank" rel="noopener">Issues ↗</a>
+      <a href={`${href(lang, 'report')}?p=${p.slug}`}>{t(lang, 'nav.report')}</a>
       <a href={repoUrl(p)} target="_blank" rel="noopener">GitHub ↗</a>
     </nav>
 

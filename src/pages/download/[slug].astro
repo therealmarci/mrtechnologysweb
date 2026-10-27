@@ -1,0 +1,11 @@
+---
+// Kurzlink /download/<projekt>/ -> Download-Kachel in der Sprache des Browsers (für Plugins und READMEs)
+import LangRedirect from '../../components/LangRedirect.astro';
+import { PROJECTS } from '../../config';
+import { href } from '../../lib/url';
+
+export const getStaticPaths = () => PROJECTS.map((p) => ({ params: { slug: p.slug } }));
+const { slug } = Astro.params;
+---
+
+<LangRedirect de={`${href('de', 'downloads')}#${slug}`} en={`${href('en', 'downloads')}#${slug}`} />

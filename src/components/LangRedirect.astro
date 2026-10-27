@@ -1,0 +1,33 @@
+---
+// Leitet je nach Browser-Sprache auf die deutsche oder englische Seite weiter (Deutsch als Rückfall).
+// Für kurze, sprachunabhängige Links aus Plugins und READMEs.
+import { SITE } from '../config';
+
+interface Props {
+  de: string;
+  en: string;
+}
+const { de, en } = Astro.props;
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{SITE.name}</title>
+    <meta http-equiv="refresh" content={`1; url=${de}`} />
+    <link rel="canonical" href={de} />
+    <style>
+      body { background: #121216; color: #ececf1; font-family: system-ui, sans-serif; padding: 16px; }
+      a { color: #5ee7df; }
+    </style>
+    <script is:inline define:vars={{ de, en }}>
+      location.replace(navigator.language?.toLowerCase().startsWith('de') ? de : en);
+    </script>
+  </head>
+  <body>
+    <p><a href={de}>Deutsch</a> · <a href={en}>English</a></p>
+  </body>
+</html>

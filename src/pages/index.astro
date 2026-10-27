@@ -1,25 +1,7 @@
 ---
 // Startseite ohne Sprache: Browser-Sprache -> /en/, sonst /de/
+import LangRedirect from '../components/LangRedirect.astro';
 import { href } from '../lib/url';
-const de = href('de');
-const en = href('en');
 ---
 
-<!doctype html>
-<html lang="de">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MRtechnologys</title>
-    <meta http-equiv="refresh" content={`1; url=${de}`} />
-    <style>
-      body { background: #121216; color: #ececf1; font-family: system-ui, sans-serif; }
-    </style>
-    <script is:inline define:vars={{ de, en }}>
-      location.replace(navigator.language?.toLowerCase().startsWith('de') ? de : en);
-    </script>
-  </head>
-  <body>
-    <p><a href={de}>Deutsch</a> · <a href={en}>English</a></p>
-  </body>
-</html>
+<LangRedirect de={href('de')} en={href('en')} />
