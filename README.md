@@ -12,7 +12,7 @@ Alles wird **beim Build direkt von GitHub geholt**. Es gibt nichts doppelt zu pf
 | Anleitung | `README.md` des Plugin-Repos (englisch: `README.en.md`, falls vorhanden) |
 | Für Entwickler | `docs/DOKUMENTATION.md` (englisch: `docs/DOCUMENTATION.en.md`), nur wenn es die Datei gibt |
 | Downloads | GitHub Releases mit Tags `mc<MC>-v<version>` bzw. `<variante>-mc<MC>-v<version>` (MRtoolbar). Pro MC-Version: neueste stabile Version (sonst neueste Vorabversion), der Rest unter „Ältere Versionen“ |
-| Fehler melden | öffnet `issues/new` mit der passenden Issue-Form (`bug_report.yml`, `feature_request.yml`, `feature_change.yml`). Vorausgefüllt: Titel, Text (`what` / `idea` / `wanted`), `version`, `server`, `config` |
+| Fehler melden | öffnet `issues/new` mit der passenden Issue-Form (wird automatisch erkannt: `.github/ISSUE_TEMPLATE/bug_report.yml` auf dem Standard-Branch, sonst ein vorausgefüllter Text) (`bug_report.yml`, `feature_request.yml`, `feature_change.yml`). Vorausgefüllt: Titel, Text (`what` / `idea` / `wanted`), `version`, `server`, `config` |
 
 **Config-Upload:** Die Datei wird nur im Browser gelesen ([src/lib/redact.ts](src/lib/redact.ts)):
 - Kommentarzeilen werden entfernt.

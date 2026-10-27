@@ -42,7 +42,6 @@ export interface Project {
   tagline: Record<Lang, string>;
   docs: DocPage[];
   variants: Variant[];
-  issueForms: boolean; // hat das Repo .github/ISSUE_TEMPLATE (bug_report.yml usw.)?
 }
 
 const GUIDE: DocPage = {
@@ -79,7 +78,6 @@ export const PROJECTS: Project[] = [
     },
     docs: [GUIDE, DEV],
     variants: SINGLE,
-    issueForms: true,
   },
   {
     slug: 'mrchunks',
@@ -93,7 +91,6 @@ export const PROJECTS: Project[] = [
     },
     docs: [GUIDE, DEV],
     variants: SINGLE,
-    issueForms: true,
   },
   {
     slug: 'mradmin',
@@ -107,7 +104,6 @@ export const PROJECTS: Project[] = [
     },
     docs: [GUIDE, WEB],
     variants: SINGLE,
-    issueForms: true,
   },
   {
     slug: 'mrpvp',
@@ -121,7 +117,6 @@ export const PROJECTS: Project[] = [
     },
     docs: [GUIDE],
     variants: SINGLE,
-    issueForms: true,
   },
   {
     slug: 'mrtoolbar',
@@ -138,7 +133,6 @@ export const PROJECTS: Project[] = [
       { id: 'plugin', label: { de: 'Plugin (Server)', en: 'Plugin (server)' } },
       { id: 'mod', label: { de: 'Fabric-Mod (Client)', en: 'Fabric mod (client)' } },
     ],
-    issueForms: false,
   },
 ];
 

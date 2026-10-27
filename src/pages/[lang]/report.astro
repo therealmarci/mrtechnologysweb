@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import { PROJECTS, repoUrl, type Lang } from '../../config';
 import { t } from '../../i18n';
-import { getReleases } from '../../lib/github';
+import { getFile, getReleases } from '../../lib/github';
 import { langPaths } from '../../lib/paths';
 
 export const getStaticPaths = langPaths;
@@ -13,7 +13,8 @@ const data = {
     PROJECTS.map(async (p) => ({
       slug: p.slug,
       url: repoUrl(p),
-      forms: p.issueForms,
+      // Issue-Forms nutzt GitHub nur vom Standard-Branch - also dort nachsehen statt es festzulegen
+      forms: (await getFile(p, '.github/ISSUE_TEMPLATE/bug_report.yml')) !== undefined,
       versions: (await getReleases(p)).map((r) => r.tag),
     })),
   ),
