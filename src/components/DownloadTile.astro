@@ -65,7 +65,7 @@ const selectId = `mc-${p.slug}${compact ? '-c' : ''}`;
             {mcVersions.map((mc) => (
               <option value={mc}>
                 {mc}
-                {!releases.some((r) => r.mc === mc && !r.prerelease) && ` (${t(lang, 'release.pre')})`}
+                {!releases.some((r) => r.mc === mc && !r.prerelease) && ` (${t(lang, 'release.preShort')})`}
               </option>
             ))}
           </select>

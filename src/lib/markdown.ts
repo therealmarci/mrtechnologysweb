@@ -83,6 +83,8 @@ function stripIntro(tokens: Tokens.Generic[]) {
     }
     // "**Inhalt:** [1. ...](#..) · ..." als Absatz (Stil der DOKUMENTATION.md)
     if (tok.type === 'paragraph' && /^\*\*(Inhalt|Contents):?\*\*:?/i.test(tok.raw.trim())) continue;
+    // Linkzeile der README (Download · Anleitung · Fehler melden) - auf der Website stehen die schon daneben
+    if (tok.type === 'paragraph' && /\/download\/[\w-]+\//.test(tok.raw) && /\/report\/[\w-]+\//.test(tok.raw) && tok.raw.length < 400) continue;
     if (skipDepth) continue;
     out.push(tok);
   }

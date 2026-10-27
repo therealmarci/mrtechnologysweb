@@ -791,6 +791,9 @@ h2 {
 
 .dl-mc select {
   flex: 1;
+  min-width: 0;
+  width: 100%;
+  text-overflow: ellipsis;
   padding: 8px 10px;
 }
 
@@ -1171,4 +1174,31 @@ mark.todo {
 .dl-tile:target {
   outline: 3px solid var(--grass);
   outline-offset: 2px;
+}
+
+/* aufklappbare Abschnitte in der Doku (<details> in den READMEs) */
+.prose details {
+  margin: 1.2em 0;
+  background: var(--panel);
+  border: 2px solid #000;
+  padding: 10px 16px;
+}
+
+.prose details > summary {
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+
+.prose details > summary::before {
+  content: '▸ ';
+  color: var(--grass);
+}
+
+.prose details[open] > summary {
+  margin-bottom: 10px;
+}
+
+.prose details[open] > summary::before {
+  content: '▾ ';
 }

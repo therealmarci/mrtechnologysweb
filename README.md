@@ -60,6 +60,6 @@ Ohne Token sind 60 GitHub-API-Anfragen pro Stunde erlaubt, das reicht für ein p
 
 In den Plugin-Repos ist dafür nichts nötig. Ein neues Release erscheint nach spätestens etwa 15 Minuten, je nach Auslastung bei GitHub manchmal etwas später.
 
-Eine neue MC-Version (Tag z.B. `mc26.4-v0.1.0`) taucht automatisch oben im Dropdown der Download-Kachel auf und ist vorausgewählt. Solange es für diese MC-Version nur Vorabversionen gibt, steht im Dropdown „(Vorabversion)“, und der Download-Button ist gelb. Ältere MC-Versionen bleiben im Dropdown wählbar.
+Eine neue MC-Version (Tag z.B. `mc26.4-v0.1.0`) taucht automatisch oben im Dropdown der Download-Kachel auf und ist vorausgewählt. Solange es für diese MC-Version nur Vorabversionen gibt, steht im Dropdown „(Vorab)“, und der Download-Button ist gelb. Ältere MC-Versionen bleiben im Dropdown wählbar.
 
 Sofort statt nach bis zu 15 Minuten geht es optional mit einem `repository_dispatch` (Typ `release`). Dafür braucht jedes Plugin-Repo ein Token als Secret. Das ist im Moment nicht eingerichtet.
