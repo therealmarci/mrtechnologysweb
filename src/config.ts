@@ -62,6 +62,12 @@ const WEB: DocPage = {
   fileEn: 'docs/WEB-INTERFACE.en.md',
   label: { de: 'Weboberfläche', en: 'Web interface' },
 };
+const PERMS: DocPage = {
+  id: 'permissions',
+  file: 'docs/PERMISSIONS.md',
+  fileEn: 'docs/PERMISSIONS.en.md',
+  label: { de: 'Permissions', en: 'Permissions' },
+};
 const SINGLE: Variant[] = [{ id: '', label: { de: 'Plugin', en: 'Plugin' } }];
 const PAPER = { de: 'Paper-Plugin', en: 'Paper plugin' };
 
@@ -102,7 +108,7 @@ export const PROJECTS: Project[] = [
       de: 'Admin-Werkzeugkasten: Wartung, Tickets, Staff-Chat, Ankündigungen und Weboberfläche.',
       en: 'Admin toolkit: maintenance, tickets, staff chat, announcements and a web interface.',
     },
-    docs: [GUIDE, WEB],
+    docs: [GUIDE, WEB, PERMS],
     variants: SINGLE,
   },
   {
