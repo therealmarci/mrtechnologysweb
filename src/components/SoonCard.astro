@@ -1,0 +1,33 @@
+---
+// Kachel für ein angekündigtes Projekt (COMING_SOON): wie ProjectCard, aber ohne Links und Releases.
+import PixelIcon from './PixelIcon.astro';
+import type { Lang, Project } from '../config';
+import { t } from '../i18n';
+
+interface Props {
+  lang: Lang;
+  project: Project;
+}
+const { lang, project: p } = Astro.props;
+---
+
+<article class="panel card card-soon">
+  <div class="card-head">
+    <div class="card-icon"><PixelIcon name={p.icon} /></div>
+    <div>
+      <h3>{p.name}</h3>
+      <span class="kind">{p.kind[lang]}</span>
+    </div>
+  </div>
+  <p>{p.tagline[lang]}</p>
+  <div class="card-meta">
+    <span class="badge badge-pre">{t(lang, 'card.soon')}</span>
+  </div>
+</article>
+
+<style>
+  .card-soon {
+    opacity: 0.85;
+    border-style: dashed;
+  }
+</style>

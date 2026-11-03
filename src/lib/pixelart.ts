@@ -148,6 +148,25 @@ const ICONS: Record<string, () => Grid> = {
     ]),
   swords: () => overlay(mirrorX(sword()), sword()),
   pickaxe,
+  pin: () =>
+    fromRows([
+      '.....kkkkkk.....',
+      '....krrrrrrk....',
+      '...krrrrrrrrk...',
+      '..krrrwwwwrrRk..',
+      '..krrwwwwwwrRk..',
+      '..krrwwwwwwrRk..',
+      '..krrrwwwwrrRk..',
+      '...krrrrrrrRk...',
+      '...krrrrrrrRk...',
+      '....krrrrrRk....',
+      '.....krrrRk.....',
+      '......krRk......',
+      '.......kk.......',
+      '...gggggggggg...',
+      '..gGgggGggggGg..',
+      '...GGGGGGGGGG...',
+    ]),
 };
 
 /** SVG-Markup; gleiche Farben in einer Zeile werden zu einem Rechteck zusammengefasst. */

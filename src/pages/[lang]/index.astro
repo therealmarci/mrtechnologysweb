@@ -1,7 +1,8 @@
 ---
 import Base from '../../layouts/Base.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
-import { PROJECTS, type Lang } from '../../config';
+import { COMING_SOON, PROJECTS, type Lang } from '../../config';
+import SoonCard from '../../components/SoonCard.astro';
 import { t, numFmt } from '../../i18n';
 import { getReleases, totalDownloads } from '../../lib/github';
 import { href } from '../../lib/url';
@@ -40,6 +41,7 @@ const mcVersions = [...new Set((await Promise.all(PROJECTS.map(getReleases))).fl
       <h2 class="section-title">{t(lang, 'nav.projects')}</h2>
       <div class="cards">
         {PROJECTS.map((p) => <ProjectCard lang={lang} project={p} />)}
+        {COMING_SOON.map((p) => <SoonCard lang={lang} project={p} />)}
       </div>
     </div>
   </section>

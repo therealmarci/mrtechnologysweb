@@ -92,8 +92,8 @@ export const PROJECTS: Project[] = [
     icon: 'chunks',
     kind: PAPER,
     tagline: {
-      de: 'Chunkloader mit Einladungen, Kartenansicht in squaremap und fairen Limits.',
-      en: 'Chunk loader with invites, squaremap integration and fair limits.',
+      de: 'Chunkloader mit Chunk-Budget, Einladungen, Lag-Schutz und Karte im Browser (mit MRadmin).',
+      en: 'Chunk loader with a chunk budget, invites, lag protection and a map in the browser (with MRadmin).',
     },
     docs: [GUIDE, DEV],
     variants: SINGLE,
@@ -139,6 +139,26 @@ export const PROJECTS: Project[] = [
       { id: 'plugin', label: { de: 'Plugin (Server)', en: 'Plugin (server)' } },
       { id: 'mod', label: { de: 'Fabric-Mod (Client)', en: 'Fabric mod (client)' } },
     ],
+  },
+];
+
+/**
+ * Angekündigte Projekte: nur als Kachel „Bald verfügbar“ auf der Startseite - ohne Anleitung, Downloads und
+ * Fehlermelden (die Seiten bauen nur PROJECTS). Mit dem ersten Release nach PROJECTS verschieben.
+ */
+export const COMING_SOON: Project[] = [
+  {
+    slug: 'mrwaypoints',
+    name: 'MRwaypoints',
+    repo: 'mrwaypoints',
+    icon: 'pin',
+    kind: { de: 'Plugin + Fabric-Mod', en: 'Plugin + Fabric mod' },
+    tagline: {
+      de: 'Gemeinsame Server-Wegpunkte in Kategorien - mit Wegweiser im Spiel, in Xaero\'s Minimap und auf der Karte im Browser.',
+      en: 'Shared server waypoints in categories - with an in-game guide, in Xaero\'s Minimap and on the map in the browser.',
+    },
+    docs: [],
+    variants: [],
   },
 ];
 
