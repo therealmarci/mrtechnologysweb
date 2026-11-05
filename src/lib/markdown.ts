@@ -37,6 +37,7 @@ export interface LinkContext {
   owner: string;
   repo: string;
   file: string; // Pfad der gerenderten Datei im Repo, für relative Links
+  ref?: string; // Branch für Links/Bilder auf GitHub (Standard: Standard-Branch)
   /** Repo-Pfad -> interne URL (z.B. README.md -> /de/docs/mrsleep/) */
   internal: Record<string, string>;
   /** absolute URL -> interne URL oder undefined (z.B. GitHub-Releases -> Downloads der Website) */
@@ -59,8 +60,8 @@ function rewriteHref(href: string, ctx: LinkContext, image: boolean) {
   const full = resolveRepoPath(ctx.file, decodeURIComponent(path));
   if (!image && ctx.internal[full]) return ctx.internal[full] + (hash ? `#${hash}` : '');
   const base = image
-    ? `https://raw.githubusercontent.com/${ctx.owner}/${ctx.repo}/HEAD/`
-    : `https://github.com/${ctx.owner}/${ctx.repo}/blob/HEAD/`;
+    ? `https://raw.githubusercontent.com/${ctx.owner}/${ctx.repo}/${ctx.ref ?? 'HEAD'}/`
+    : `https://github.com/${ctx.owner}/${ctx.repo}/blob/${ctx.ref ?? 'HEAD'}/`;
   return base + full + (hash ? `#${hash}` : '');
 }
 
@@ -104,7 +105,7 @@ export function renderDoc(src: string, ctx: LinkContext): Rendered {
         const text = decode(inner).trim();
         const id = slugger.slug(text);
         if (depth >= 2 && depth <= 3) toc.push({ depth, text, id });
-        return `<h${depth} id="${id}"><a class="anchor" href="#${id}" aria-hidden="true">#</a>${inner}</h${depth}>\n`;
+        return `<h${depth} id="${id}"><a class="anchor" href="#${id}" aria-hidden="true" data-pagefind-ignore>#</a>${inner}</h${depth}>\n`;
       },
       link({ href, title, tokens }) {
         const url = rewriteHref(href, ctx, false);

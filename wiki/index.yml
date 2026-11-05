@@ -1,0 +1,16 @@
+# Gemeinsame Wiki-Seiten aller MRtechnology-Projekte (Buch "Allgemein").
+# Aufbau wie docs/wiki/index.yml in den Plugin-Repos: Abschnitte mit Seiten, id "" = Einstieg.
+sections:
+  - title: {de: Einstieg, en: Getting started}
+    pages:
+      - {id: "", file: willkommen.md, title: {de: Willkommen, en: Welcome}}
+  - title: {de: Für Admins, en: For admins}
+    audience: admin
+    pages:
+      - {id: installieren, file: installieren.md, title: {de: Installieren & aktualisieren, en: Install & update}}
+      - {id: rechte, file: rechte.md, title: {de: Rechte mit LuckPerms, en: Permissions with LuckPerms}}
+      - {id: sprachen, file: sprachen.md, title: {de: Sprachen & Texte, en: Languages & messages}}
+      - {id: zusammenarbeit, file: zusammenarbeit.md, title: {de: Zusammenarbeit über MRadmin, en: Working together via MRadmin}}
+  - title: {de: Rechtliches, en: Legal}
+    pages:
+      - {id: lizenz, file: lizenz.md, title: {de: Lizenz, en: License}}

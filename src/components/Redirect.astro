@@ -1,0 +1,34 @@
+---
+// Weiterleitung einer alten Adresse (/docs/...) ins Wiki. `anchors` ordnet alte #Sprungmarken der Wiki-Seite
+// zu, auf der die Überschrift jetzt steht (die README ist ja auf mehrere Seiten verteilt).
+import { SITE } from '../config';
+
+interface Props {
+  to: string;
+  anchors?: Record<string, string>;
+}
+const { to, anchors = {} } = Astro.props;
+---
+
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{SITE.name}</title>
+    <meta http-equiv="refresh" content={`1; url=${to}`} />
+    <link rel="canonical" href={to} />
+    <style>
+      body { background: #121216; color: #ececf1; font-family: system-ui, sans-serif; padding: 16px; }
+      a { color: #5ee7df; }
+    </style>
+    <script is:inline define:vars={{ to, anchors }}>
+      const hash = location.hash.slice(1);
+      location.replace((anchors[decodeURIComponent(hash)] ?? to) + location.hash);
+    </script>
+  </head>
+  <body>
+    <p><a href={to}>→ {to}</a></p>
+  </body>
+</html>

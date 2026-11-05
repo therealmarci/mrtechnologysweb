@@ -10,7 +10,7 @@ interface Props {
   project: Project;
 }
 const { lang, project: p } = Astro.props;
-const docs = href(lang, `docs/${p.slug}`);
+const docs = href(lang, `wiki/${p.slug}`);
 const versions = await Promise.all(p.variants.map((v) => latest(p, v)));
 const newest = versions.flatMap((v) => [v.pre, v.stable]).filter((r) => r !== undefined)[0];
 ---

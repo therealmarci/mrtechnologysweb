@@ -1,0 +1,12 @@
+---
+// Kurzlinks /wiki/ und /wiki/<projekt>/ -> Wiki in der Sprache des Browsers
+import LangRedirect from '../../components/LangRedirect.astro';
+import { PROJECTS } from '../../config';
+import { GENERAL } from '../../lib/wiki';
+import { href } from '../../lib/url';
+
+export const getStaticPaths = () => [undefined, GENERAL.slug, ...PROJECTS.map((p) => p.slug)].map((slug) => ({ params: { slug } }));
+const path = Astro.params.slug ? `wiki/${Astro.params.slug}` : 'wiki';
+---
+
+<LangRedirect de={href('de', path)} en={href('en', path)} />

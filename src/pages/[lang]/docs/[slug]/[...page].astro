@@ -1,117 +1,39 @@
 ---
-import Base from '../../../../layouts/Base.astro';
-import PixelIcon from '../../../../components/PixelIcon.astro';
-import DownloadTile from '../../../../components/DownloadTile.astro';
-import { LANGS, PROJECTS, SITE, repoUrl, type DocPage, type Lang, type Project } from '../../../../config';
-import { t } from '../../../../i18n';
-import { getFile } from '../../../../lib/github';
-import { renderDoc } from '../../../../lib/markdown';
+// Alte Anleitungs-Adressen /<lang>/docs/<projekt>/[<tab>]/ -> Wiki (gleiche Seite, falls es sie dort gibt).
+import Redirect from '../../../../components/Redirect.astro';
+import { LANGS, PROJECTS, type Lang } from '../../../../config';
 import { href } from '../../../../lib/url';
+import { getBook, pagePath, type WikiBook } from '../../../../lib/wiki';
+import { renderPage } from '../../../../lib/wikiRender';
+import { slug } from 'github-slugger';
 
 export async function getStaticPaths() {
   const paths = [];
-  for (const project of PROJECTS) {
-    // nur Seiten, deren Datei es im Repo gibt
-    const docs: DocPage[] = [];
-    for (const d of project.docs) if (await getFile(project, d.file)) docs.push(d);
+  for (const p of PROJECTS) {
+    const book = await getBook(p, 'stable');
+    if (!book) continue;
+    const ids = new Set(['guide', ...p.docs.map((d) => d.id), ...book.pages.map((pg) => pg.id).filter(Boolean)]);
     for (const lang of LANGS) {
-      for (const doc of docs) {
-        paths.push({
-          params: { lang, slug: project.slug, page: doc.id === 'guide' ? undefined : doc.id },
-          props: { project, doc, docs },
-        });
-      }
+      for (const id of ids) paths.push({ params: { lang, slug: p.slug, page: id === 'guide' ? undefined : id }, props: { book, id } });
     }
   }
   return paths;
 }
 
-interface Props {
-  project: Project;
-  doc: DocPage;
-  docs: DocPage[];
-}
-const { project: p, doc, docs } = Astro.props;
+const { book, id } = Astro.props as { book: WikiBook; id: string };
 const lang = Astro.params.lang as Lang;
-const pagePath = (d: DocPage) => `docs/${p.slug}${d.id === 'guide' ? '' : `/${d.id}`}`;
-
-const en = lang === 'en' && doc.fileEn ? await getFile(p, doc.fileEn) : undefined;
-const file = en ? doc.fileEn! : doc.file;
-const src = en ?? (await getFile(p, doc.file))!;
-const internal = Object.fromEntries(
-  docs.flatMap((d) => [d.file, d.fileEn].filter(Boolean).map((f) => [f!, href(lang, pagePath(d))])),
-);
-// Links auf GitHub-Releases/-Issues und Kurzlinks der Website führen auf die Seiten der Website
-const GITHUB_LINK = new RegExp(`^https://github\\.com/${SITE.owner}/([\\w.-]+)/(releases|issues)\\b`, 'i');
-const SITE_LINK = new RegExp(`^${SITE.url}/(download|report|docs)/([\\w-]+)`);
-const external = (url: string) => {
-  const gh = GITHUB_LINK.exec(url);
-  const site = SITE_LINK.exec(url);
-  const target = PROJECTS.find((x) => (gh ? x.repo === gh[1] : x.slug === site?.[2]));
-  if (!target) return undefined;
-  const kind = gh ? (gh[2].toLowerCase() === 'releases' ? 'download' : 'report') : site![1];
-  if (kind === 'download') return `${href(lang, 'downloads')}#${target.slug}`;
-  if (kind === 'report') return `${href(lang, 'report')}?p=${target.slug}`;
-  return href(lang, `docs/${target.slug}`);
-};
-const { html, toc } = renderDoc(src, { owner: SITE.owner, repo: p.repo, file, internal, external });
-const showNotice = lang === 'en' && !en;
+const target = book.pages.find((pg) => pg.id === (id === 'guide' ? '' : id));
+const to = href(lang, pagePath(book, target?.id ?? ''));
+// Sprungmarken der alten README: Überschrift suchen, auf welcher Wiki-Seite sie jetzt steht
+const anchors: Record<string, string> = {};
+if (id === 'guide' && !book.legacy) {
+  for (const pg of [...book.pages].reverse()) {
+    const url = href(lang, pagePath(book, pg.id));
+    for (const e of (await renderPage(book, pg, lang)).toc) anchors[e.id] = url;
+    // frühere Kapitel sind jetzt ganze Seiten: #befehle -> Seite befehle bzw. Seite mit diesem Titel
+    for (const key of [pg.id, slug(pg.title.de), slug(pg.title.en)]) if (key) anchors[key] = url;
+  }
+}
 ---
 
-<Base lang={lang} path={pagePath(doc)} title={`${p.name} - ${doc.label[lang]}`} description={p.tagline[lang]}>
-  <div class="wrap">
-    <div class="doc-head">
-      <div class="card-icon"><PixelIcon name={p.icon} /></div>
-      <div>
-        <h1>{p.name}</h1>
-        <p>{p.kind[lang]} · {p.tagline[lang]}</p>
-      </div>
-    </div>
-
-    <nav class="tabs" aria-label={p.name}>
-      {
-        docs.map((d) => (
-          <a href={href(lang, pagePath(d))} aria-current={d.id === doc.id ? 'page' : undefined}>
-            {d.label[lang]}
-          </a>
-        ))
-      }
-      <a href={`${href(lang, 'report')}?p=${p.slug}`}>{t(lang, 'nav.report')}</a>
-      <a href={repoUrl(p)} target="_blank" rel="noopener">GitHub ↗</a>
-    </nav>
-
-    <div class="doc-layout">
-      <article class="prose">
-        {showNotice && <p class="notice" lang="en">{t(lang, 'doc.onlyGerman')}</p>}
-        <Fragment set:html={html} />
-        <p class="muted" style="margin-top:3em">
-          {t(lang, 'doc.source')}:{' '}
-          <a href={`${repoUrl(p)}/blob/HEAD/${file}`} target="_blank" rel="noopener">{p.repo}/{file} ↗</a>
-        </p>
-      </article>
-
-      <aside class="doc-aside">
-        {doc.id === 'guide' && <DownloadTile lang={lang} project={p} compact />}
-        {
-          toc.length > 0 && (
-            <details class="panel toc" open>
-              <summary>{t(lang, 'doc.onThisPage')}</summary>
-              <ul>
-                {toc.map((e) => (
-                  <li class={`d${e.depth}`}>
-                    <a href={`#${e.id}`}>{e.text}</a>
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )
-        }
-      </aside>
-    </div>
-  </div>
-</Base>
-
-<script>
-  // Auf dem Handy steht das Inhaltsverzeichnis über dem Text - dort eingeklappt starten
-  if (matchMedia('(max-width: 960px)').matches) document.querySelector('.toc')?.removeAttribute('open');
-</script>
+<Redirect to={to} anchors={anchors} />

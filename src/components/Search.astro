@@ -1,0 +1,166 @@
+---
+// Suche über das ganze Wiki (Pagefind, statisch - der Index entsteht nach `astro build` in dist/pagefind/).
+// Knopf in der Kopfzeile, Strg+K bzw. "/" öffnet das Fenster; Filter pro Plugin.
+import type { Lang } from '../config';
+import { t } from '../i18n';
+import { asset } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const texts = {
+  all: t(lang, 'search.all'),
+  empty: t(lang, 'search.empty'),
+  start: t(lang, 'search.start'),
+  unavailable: t(lang, 'search.unavailable'),
+};
+---
+
+<button class="search-open" type="button" data-search-open aria-label={t(lang, 'search.button')}>
+  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1a5.5 5.5 0 0 1 4.38 8.82l3.65 3.65-1.06 1.06-3.65-3.65A5.5 5.5 0 1 1 6.5 1Zm0 1.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg>
+  <span>{t(lang, 'search.button')}</span>
+  <kbd>{lang === 'de' ? 'Strg' : 'Ctrl'} K</kbd>
+</button>
+
+<dialog class="search" data-search data-base={asset('pagefind/')} data-texts={JSON.stringify(texts)}>
+  <div class="search-box">
+    <div class="search-field">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1a5.5 5.5 0 0 1 4.38 8.82l3.65 3.65-1.06 1.06-3.65-3.65A5.5 5.5 0 1 1 6.5 1Zm0 1.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg>
+      <input type="search" placeholder={t(lang, 'search.placeholder')} autocomplete="off" spellcheck="false" />
+      <button type="button" class="search-close" data-search-close aria-label={t(lang, 'search.close')}>Esc</button>
+    </div>
+    <div class="search-filters" role="group"></div>
+    <ol class="search-results" aria-live="polite"></ol>
+  </div>
+</dialog>
+
+<script>
+  type Result = { url: string; meta: { title?: string }; excerpt: string; filters: Record<string, string[]>; sub_results?: { title: string; url: string; excerpt: string }[] };
+  const dialog = document.querySelector<HTMLDialogElement>('[data-search]')!;
+  const input = dialog.querySelector('input')!;
+  const list = dialog.querySelector('.search-results')!;
+  const filterBox = dialog.querySelector('.search-filters')!;
+  const texts = JSON.parse(dialog.dataset.texts!);
+  let pagefind: any;
+  let plugin = '';
+  let active = -1;
+  let seq = 0;
+
+  async function load() {
+    if (pagefind !== undefined) return pagefind;
+    try {
+      const url = `${dialog.dataset.base}pagefind.js`;
+      pagefind = await import(/* @vite-ignore */ url);
+      await pagefind.options({ excerptLength: 22 });
+      const filters = (await pagefind.filters()).plugin ?? {};
+      const names = Object.keys(filters).sort((a, b) => (a === 'Allgemein' ? -1 : b === 'Allgemein' ? 1 : a.localeCompare(b)));
+      filterBox.replaceChildren(
+        ...['', ...names].map((name) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = name || texts.all;
+          b.setAttribute('aria-pressed', String(name === plugin));
+          b.onclick = () => {
+            plugin = name;
+            filterBox.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+            run();
+            input.focus();
+          };
+          return b;
+        }),
+      );
+    } catch {
+      pagefind = null;
+    }
+    return pagefind;
+  }
+
+  function message(text: string) {
+    const li = document.createElement('li');
+    li.className = 'search-msg';
+    li.textContent = text;
+    list.replaceChildren(li);
+    active = -1;
+  }
+
+  async function run() {
+    const q = input.value.trim();
+    const mine = ++seq;
+    const pf = await load();
+    if (mine !== seq) return;
+    if (!pf) return message(texts.unavailable);
+    if (!q) return message(texts.start);
+    const search = await pf.debouncedSearch(q, plugin ? { filters: { plugin } } : {}, 120);
+    if (!search || mine !== seq) return;
+    // Changelogs nach hinten - sie erwähnen fast alles, sind aber selten die gesuchte Anleitung
+    const results: Result[] = (await Promise.all(search.results.slice(0, 14).map((r: any) => r.data())))
+      .sort((a: Result, b: Result) => Number(a.url.includes('/changelog')) - Number(b.url.includes('/changelog')))
+      .slice(0, 12);
+    if (mine !== seq) return;
+    if (!results.length) return message(texts.empty);
+    list.replaceChildren(
+      ...results.map((r) => {
+        const li = document.createElement('li');
+        const sub = (r.sub_results ?? []).filter((s) => s.url !== r.url && s.excerpt !== r.excerpt).slice(0, 2);
+        li.innerHTML = `<a class="search-hit" href="${r.url}"><span class="search-tag">${r.filters.plugin?.[0] ?? ''}</span><b></b><span class="search-excerpt">${r.excerpt}</span></a>`;
+        li.querySelector('b')!.textContent = r.meta.title ?? r.url;
+        for (const s of sub) {
+          const a = document.createElement('a');
+          a.className = 'search-sub';
+          a.href = s.url;
+          a.innerHTML = `<b></b><span class="search-excerpt">${s.excerpt}</span>`;
+          a.querySelector('b')!.textContent = s.title;
+          li.append(a);
+        }
+        return li;
+      }),
+    );
+    active = -1;
+  }
+
+  function open() {
+    if (!dialog.open) dialog.showModal();
+    if (!input.value) input.select();
+    run();
+  }
+
+  document.querySelectorAll('[data-search-open]').forEach((b) => b.addEventListener('click', open));
+  dialog.querySelector('[data-search-close]')!.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('click', (e) => e.target === dialog && dialog.close());
+  input.addEventListener('input', run);
+  input.addEventListener('keydown', (e) => {
+    const links = [...list.querySelectorAll<HTMLAnchorElement>('a')];
+    if (!links.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      active = (active + (e.key === 'ArrowDown' ? 1 : -1) + links.length) % links.length;
+      links.forEach((a, i) => a.classList.toggle('active', i === active));
+      links[active].scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      location.href = links[Math.max(active, 0)].href;
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName);
+    if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !typing)) {
+      e.preventDefault();
+      open();
+    }
+  });
+  // Link mit ?q=… öffnet die Suche gleich mit diesem Text (zum Teilen von Suchen)
+  const preset = new URLSearchParams(location.search).get('q');
+  if (preset) {
+    input.value = preset;
+    open();
+  }
+  // Wiki-Startseite: großes Suchfeld öffnet das Fenster mit dem getippten Text
+  document.querySelectorAll<HTMLInputElement>('[data-search-inline]').forEach((field) => {
+    field.addEventListener('focus', () => {
+      input.value = field.value;
+      field.blur();
+      open();
+    });
+  });
+</script>

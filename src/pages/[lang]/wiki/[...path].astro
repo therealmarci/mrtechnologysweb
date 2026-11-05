@@ -1,0 +1,226 @@
+---
+// Eine Wiki-Seite: links der Seitenbaum, Mitte der Text, rechts "Auf dieser Seite" (+ Download auf dem Einstieg).
+// /wiki/<buch>/<seite>/ = veröffentlicht (main), /wiki/preview/<buch>/<seite>/ = Vorschau (beta).
+import Base from '../../../layouts/Base.astro';
+import PixelIcon from '../../../components/PixelIcon.astro';
+import DownloadTile from '../../../components/DownloadTile.astro';
+import WikiNav from '../../../components/WikiNav.astro';
+import { LANGS, PROJECTS, repoUrl, type Lang } from '../../../config';
+import { t } from '../../../i18n';
+import { latest } from '../../../lib/github';
+import { href } from '../../../lib/url';
+import { getBook, getBooks, hasPreview, pagePath, sectionOf, type WikiBook, type WikiPage } from '../../../lib/wiki';
+import { renderPage } from '../../../lib/wikiRender';
+
+export async function getStaticPaths() {
+  const stable = await getBooks('stable');
+  const previews: WikiBook[] = [];
+  for (const p of PROJECTS) if (await hasPreview(p)) previews.push((await getBook(p, 'preview'))!);
+  const paths = [];
+  for (const lang of LANGS) {
+    for (const book of [...stable, ...previews]) {
+      const nav = book.channel === 'preview' ? stable.map((b) => (b.slug === book.slug ? book : b)) : stable;
+      for (const page of book.pages) {
+        paths.push({
+          params: { lang, path: pagePath(book, page.id).replace(/^wiki\//, '') },
+          props: { book, page, nav, preview: previews.some((b) => b.slug === book.slug) },
+        });
+      }
+    }
+  }
+  return paths;
+}
+
+interface Props {
+  book: WikiBook;
+  page: WikiPage;
+  nav: WikiBook[];
+  preview: boolean; // es gibt eine Vorschau dieses Buchs
+}
+const { book, page, nav, preview } = Astro.props;
+const lang = Astro.params.lang as Lang;
+const p = book.project;
+const isPreview = book.channel === 'preview';
+const section = sectionOf(book, page);
+const index = book.pages.indexOf(page);
+const prev = book.pages[index - 1];
+const next = book.pages[index + 1];
+const { html, toc, file, translated } = await renderPage(book, page, lang);
+const bookName = p ? p.name : t(lang, 'wiki.general');
+const isStart = page.id === '' && p;
+const versions = isStart ? await Promise.all(p.variants.map(async (v) => ({ v, ...(await latest(p, v)) }))) : [];
+const other = isPreview ? { ...book, channel: 'stable' as const } : { ...book, channel: 'preview' as const };
+const otherBook = p && (isPreview || preview) ? await getBook(p, isPreview ? 'stable' : 'preview') : undefined;
+const otherPage = otherBook?.pages.find((x) => x.id === page.id);
+const otherUrl = otherBook ? href(lang, pagePath(other, otherPage ? page.id : '')) : undefined;
+const title = page.id === '' ? bookName : `${page.title[lang]} · ${bookName}`;
+---
+
+<Base lang={lang} path={pagePath(book, page.id)} title={title} description={p?.tagline[lang]} noindex={isPreview}>
+  <div class="wrap wiki">
+    <details class="wiki-drawer">
+      <summary>☰ {t(lang, 'wiki.menu')}: {bookName}</summary>
+      <WikiNav lang={lang} books={nav} current={book} page={page} />
+    </details>
+    <aside class="wiki-side">
+      <WikiNav lang={lang} books={nav} current={book} page={page} />
+    </aside>
+
+    <div class="wiki-main">
+      <nav class="crumbs" aria-label="Breadcrumb">
+        <a href={href(lang, 'wiki')}>{t(lang, 'nav.wiki')}</a>
+        <span>›</span>
+        <a href={href(lang, pagePath(book))}>{bookName}</a>
+        {
+          page.id !== '' && (
+            <>
+              <span>›</span>
+              <span>{section.title[lang]}</span>
+            </>
+          )
+        }
+      </nav>
+
+      {
+        isStart ? (
+          <header class="wiki-hero">
+            <div class="card-icon">
+              <PixelIcon name={p.icon} />
+            </div>
+            <div>
+              <h1>{p.name}</h1>
+              <p>{p.tagline[lang]}</p>
+              <div class="card-meta">
+                <span class="badge">{p.kind[lang]}</span>
+                {versions.map(({ v, stable, pre }) => {
+                  const r = stable ?? pre;
+                  return (
+                    r && (
+                      <span class={`badge ${r.prerelease ? 'badge-pre' : 'badge-stable'}`}>
+                        {p.variants.length > 1 && `${v.label[lang]} `}v{r.version} · MC {r.mc}
+                      </span>
+                    )
+                  );
+                })}
+              </div>
+              <div class="card-actions">
+                <a class="btn btn-small btn-grass" href={`${href(lang, 'downloads')}#${p.slug}`}>⬇ {t(lang, 'card.download')}</a>
+                <a class="btn btn-small" href={`${href(lang, 'report')}?p=${p.slug}`}>{t(lang, 'nav.report')}</a>
+                <a class="btn btn-small" href={repoUrl(p)} target="_blank" rel="noopener">GitHub ↗</a>
+              </div>
+            </div>
+          </header>
+        ) : (
+          <header class="wiki-title">
+            {section.audience && <span class={`chip aud-${section.audience}`}>{t(lang, `aud.${section.audience}`)}</span>}
+            <h1>{page.title[lang]}</h1>
+          </header>
+        )
+      }
+
+      {
+        isPreview && (
+          <p class="notice notice-preview">
+            {t(lang, 'wiki.previewNotice')} <a href={otherUrl}>{t(lang, 'wiki.stableLink')} →</a>
+          </p>
+        )
+      }
+      {translated && <p class="notice" lang="en">{t(lang, 'doc.onlyGerman')}</p>}
+      {book.legacy && page.id === '' && <p class="notice notice-soft">{t(lang, 'wiki.legacy')}</p>}
+
+      <article
+        class="prose"
+        data-pagefind-body={isPreview ? undefined : ''}
+        data-pagefind-filter={`plugin:${p ? p.name : 'Allgemein'}`}
+        data-pagefind-meta={`title:${page.id === '' ? `${bookName} - ${page.title[lang]}` : page.title[lang]}`}
+      >
+        <Fragment set:html={html} />
+      </article>
+
+      <nav class="pager">
+        {
+          prev ? (
+            <a href={href(lang, pagePath(book, prev.id))}>
+              <small>← {t(lang, 'wiki.prev')}</small>
+              {prev.title[lang]}
+            </a>
+          ) : (
+            <span />
+          )
+        }
+        {
+          next && (
+            <a class="next" href={href(lang, pagePath(book, next.id))}>
+              <small>{t(lang, 'wiki.next')} →</small>
+              {next.title[lang]}
+            </a>
+          )
+        }
+      </nav>
+      <p class="wiki-foot muted">
+        <a href={book.editUrl(file)} target="_blank" rel="noopener">✎ {t(lang, 'wiki.edit')}</a>
+        <span>·</span>
+        <a href={book.sourceUrl(file)} target="_blank" rel="noopener">{file} ↗</a>
+        {
+          !isPreview && preview && otherUrl && (
+            <>
+              <span>·</span>
+              <a href={otherUrl}>{t(lang, 'wiki.previewLink')}</a>
+            </>
+          )
+        }
+      </p>
+    </div>
+
+    <aside class="wiki-aside">
+      {isStart && <DownloadTile lang={lang} project={p} compact />}
+      {
+        toc.length > 0 && (
+          <details class="panel toc" open>
+            <summary>{t(lang, 'doc.onThisPage')}</summary>
+            <ul>
+              {toc.map((e) => (
+                <li class={`d${e.depth}`}>
+                  <a href={`#${e.id}`}>{e.text}</a>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )
+      }
+    </aside>
+  </div>
+</Base>
+
+<script>
+  // Handy: Inhaltsverzeichnis eingeklappt; Kopierknopf an jedem Codeblock (z.B. /lp-Befehle)
+  if (matchMedia('(max-width: 1100px)').matches) document.querySelector('.wiki-aside .toc')?.removeAttribute('open');
+  const label = document.documentElement.lang === 'de' ? ['Kopieren', 'Kopiert ✓'] : ['Copy', 'Copied ✓'];
+  document.querySelectorAll<HTMLElement>('.prose pre').forEach((pre) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy';
+    btn.textContent = label[0];
+    btn.onclick = async () => {
+      await navigator.clipboard.writeText(pre.querySelector('code')?.innerText ?? pre.innerText);
+      btn.textContent = label[1];
+      setTimeout(() => (btn.textContent = label[0]), 1500);
+    };
+    pre.append(btn);
+  });
+  // Scroll-Spy: aktuellen Abschnitt im Inhaltsverzeichnis markieren
+  const links = new Map([...document.querySelectorAll<HTMLAnchorElement>('.wiki-aside .toc a')].map((a) => [a.hash.slice(1), a]));
+  const seen = new Set<string>();
+  const spy = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) e.isIntersecting ? seen.add(e.target.id) : seen.delete(e.target.id);
+      const first = [...links.keys()].find((id) => seen.has(id));
+      if (first) links.forEach((a, id) => a.classList.toggle('active', id === first));
+    },
+    { rootMargin: '-90px 0px -60% 0px' },
+  );
+  links.forEach((_, id) => {
+    const h = document.getElementById(id);
+    if (h) spy.observe(h);
+  });
+</script>

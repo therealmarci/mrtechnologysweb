@@ -83,18 +83,20 @@ export async function totalDownloads(p: Project) {
   return (await getReleases(p)).reduce((n, r) => n + (r.asset?.downloads ?? 0), 0);
 }
 
-/** Rohtext einer Datei auf dem Standard-Branch, undefined wenn es sie nicht gibt. */
-export function getFile(p: Project, path: string): Promise<string | undefined> {
-  return cached(`file:${p.repo}:${path}`, async () => {
-    // Vorschau unveröffentlichter Doku: LOCAL_REPOS=.. liest aus den lokalen Repos statt von GitHub
+/**
+ * Rohtext einer Datei, undefined wenn es sie nicht gibt. `ref` = Branch (Standard: Standard-Branch = main).
+ * Vorschau unveröffentlichter Doku: LOCAL_REPOS=.. liest aus den lokalen Repos (Arbeitsstand, für jeden Branch).
+ */
+export function getFile(p: Project, path: string, ref = 'HEAD'): Promise<string | undefined> {
+  return cached(`file:${p.repo}:${ref}:${path}`, async () => {
     if (process.env.LOCAL_REPOS) {
       const { readFile } = await import('node:fs/promises');
       return readFile(`${process.env.LOCAL_REPOS}/${p.repo}/${path}`, 'utf8').catch(() => undefined);
     }
-    const res = await fetch(`https://raw.githubusercontent.com/${SITE.owner}/${p.repo}/HEAD/${path}`);
+    const res = await fetch(`https://raw.githubusercontent.com/${SITE.owner}/${p.repo}/${ref}/${path}`);
     if (res.status === 404) return undefined;
     if (!res.ok) {
-      fail(`${p.repo}/${path}: HTTP ${res.status}`);
+      fail(`${p.repo}@${ref}/${path}: HTTP ${res.status}`);
       return undefined;
     }
     return res.text();

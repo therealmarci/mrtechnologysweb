@@ -44,6 +44,8 @@ jobs:
               gh api "repos/$owner/$repo/releases?per_page=100" \
                 --jq '.[] | select(.draft | not) | [.tag_name, .prerelease, .published_at, ([.assets[].name] | join(","))] | @tsv'
               gh api "repos/$owner/$repo/commits/HEAD" --jq .sha
+              # beta = Vorschau des Wikis (fehlt der Branch, zählt das nicht als Fehler)
+              gh api "repos/$owner/$repo/commits/beta" --jq .sha 2>/dev/null || true
             done
           } > fingerprint.txt
           echo "value=$(sha256sum fingerprint.txt | cut -c1-16)" >> "$GITHUB_OUTPUT"

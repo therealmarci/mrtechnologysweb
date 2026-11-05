@@ -1,0 +1,142 @@
+---
+// Wiki-Startseite: großes Suchfeld, Einstieg nach Rolle (Spieler / Server-Betreiber), Kachel pro Plugin.
+import Base from '../../../layouts/Base.astro';
+import PixelIcon from '../../../components/PixelIcon.astro';
+import type { Lang } from '../../../config';
+import { t } from '../../../i18n';
+import { latest } from '../../../lib/github';
+import { langPaths } from '../../../lib/paths';
+import { href } from '../../../lib/url';
+import { getBooks, pagePath, type Audience, type WikiBook } from '../../../lib/wiki';
+
+export const getStaticPaths = langPaths;
+const lang = Astro.params.lang as Lang;
+const books = await getBooks('stable');
+const general = books.find((b) => !b.project);
+const projects = books.filter((b) => b.project);
+
+/** Seiten einer Rolle pro Buch; Bücher ohne passende Abschnitte (alte README) verlinken ihren Einstieg. */
+const byAudience = (aud: Audience, list: WikiBook[]) =>
+  list.map((b) => {
+    const pages = b.sections.filter((s) => s.audience === aud).flatMap((s) => s.pages);
+    return { book: b, pages };
+  });
+const players = byAudience('player', projects);
+const admins = byAudience('admin', projects);
+const generalAdmin = general ? general.pages : [];
+const status = await Promise.all(
+  projects.map(async (b) => {
+    const p = b.project!;
+    const v = await latest(p, p.variants[0]);
+    return v.stable ?? v.pre;
+  }),
+);
+---
+
+<Base lang={lang} path="wiki" title={t(lang, 'nav.wiki')} description={t(lang, 'wiki.intro')}>
+  <section class="wiki-home-hero">
+    <div class="wrap">
+      <h1>{t(lang, 'nav.wiki')}</h1>
+      <p>{t(lang, 'wiki.intro')}</p>
+      <label class="wiki-home-search">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 1a5.5 5.5 0 0 1 4.38 8.82l3.65 3.65-1.06 1.06-3.65-3.65A5.5 5.5 0 1 1 6.5 1Zm0 1.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg>
+        <input type="search" data-search-inline placeholder={t(lang, 'search.placeholder')} aria-label={t(lang, 'search.button')} />
+        <kbd>{lang === 'de' ? 'Strg' : 'Ctrl'} K</kbd>
+      </label>
+    </div>
+  </section>
+
+  <div class="wrap">
+    <div class="wiki-roles">
+      <section class="panel wiki-role aud-player">
+        <h2>{t(lang, 'wiki.players')}</h2>
+        <p class="muted">{t(lang, 'wiki.playersText')}</p>
+        <ul>
+          {
+            players.map(({ book, pages }) => (
+              <li>
+                <a class="role-book" href={href(lang, pagePath(book))}>
+                  <PixelIcon name={book.icon} />
+                  {book.name}
+                </a>
+                {pages.length > 0 && (
+                  <span class="role-pages">
+                    {pages.map((pg) => (
+                      <a href={href(lang, pagePath(book, pg.id))}>{pg.title[lang]}</a>
+                    ))}
+                  </span>
+                )}
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+      <section class="panel wiki-role aud-admin">
+        <h2>{t(lang, 'wiki.admins')}</h2>
+        <p class="muted">{t(lang, 'wiki.adminsText')}</p>
+        <ul>
+          {
+            general && (
+              <li>
+                <a class="role-book" href={href(lang, pagePath(general))}>
+                  <PixelIcon name={general.icon} />
+                  {t(lang, 'wiki.general')}
+                </a>
+                <span class="role-pages">
+                  {generalAdmin.map((pg) => (
+                    <a href={href(lang, pagePath(general, pg.id))}>{pg.title[lang]}</a>
+                  ))}
+                </span>
+              </li>
+            )
+          }
+          {
+            admins.map(({ book, pages }) => (
+              <li>
+                <a class="role-book" href={href(lang, pagePath(book))}>
+                  <PixelIcon name={book.icon} />
+                  {book.name}
+                </a>
+                {pages.length > 0 && (
+                  <span class="role-pages">
+                    {pages.slice(0, 6).map((pg) => (
+                      <a href={href(lang, pagePath(book, pg.id))}>{pg.title[lang]}</a>
+                    ))}
+                  </span>
+                )}
+              </li>
+            ))
+          }
+        </ul>
+      </section>
+    </div>
+
+    <h2 class="section-title">{t(lang, 'wiki.projects')}</h2>
+    <div class="cards wiki-cards">
+      {
+        projects.map((b, i) => (
+          <a class="panel card wiki-card" href={href(lang, pagePath(b))}>
+            <div class="card-head">
+              <div class="card-icon">
+                <PixelIcon name={b.icon} />
+              </div>
+              <div>
+                <h3>{b.name}</h3>
+                <span class="kind">{b.project!.kind[lang]}</span>
+              </div>
+            </div>
+            <p>{b.project!.tagline[lang]}</p>
+            <div class="card-meta">
+              <span class="badge">
+                {b.pages.length} {t(lang, 'wiki.pages')}
+              </span>
+              {status[i] && (
+                <span class={`badge ${status[i]!.prerelease ? 'badge-pre' : 'badge-stable'}`}>v{status[i]!.version}</span>
+              )}
+            </div>
+          </a>
+        ))
+      }
+    </div>
+  </div>
+</Base>

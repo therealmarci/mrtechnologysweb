@@ -1,0 +1,52 @@
+---
+// Seitenleiste des Wikis: alle Bücher (Allgemein + Projekte), das aktuelle aufgeklappt mit seinen Abschnitten.
+import PixelIcon from './PixelIcon.astro';
+import type { Lang } from '../config';
+import { t } from '../i18n';
+import { href } from '../lib/url';
+import { pagePath, type WikiBook, type WikiPage } from '../lib/wiki';
+
+interface Props {
+  lang: Lang;
+  books: WikiBook[];
+  current: WikiBook;
+  page?: WikiPage;
+}
+const { lang, books, current, page } = Astro.props;
+---
+
+<nav class="wiki-nav" aria-label={t(lang, 'nav.wiki')}>
+  <a class="wiki-nav-home" href={href(lang, 'wiki')}>{t(lang, 'nav.wiki')}</a>
+  {
+    books.map((b) => {
+      const isCurrent = b.slug === current.slug;
+      return (
+        <details class="wiki-book" open={isCurrent}>
+          <summary aria-current={isCurrent ? 'true' : undefined}>
+            <span class="wiki-book-icon">
+              <PixelIcon name={b.icon} />
+            </span>
+            {b.slug === 'allgemein' ? t(lang, 'wiki.general') : b.name}
+            {b.channel === 'preview' && <span class="chip chip-preview">{t(lang, 'wiki.preview')}</span>}
+          </summary>
+          {b.sections.map((s) => (
+            <div class="wiki-section">
+              {(b.sections.length > 1 || s.audience) && (
+                <span class:list={['wiki-section-title', s.audience && `aud-${s.audience}`]}>{s.title[lang]}</span>
+              )}
+              <ul>
+                {s.pages.map((pg) => (
+                  <li>
+                    <a href={href(lang, pagePath(b, pg.id))} aria-current={isCurrent && pg === page ? 'page' : undefined}>
+                      {pg.title[lang]}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </details>
+      );
+    })
+  }
+</nav>

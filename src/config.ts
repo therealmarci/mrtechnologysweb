@@ -22,7 +22,7 @@ export type Lang = 'de' | 'en';
 export const LANGS: Lang[] = ['de', 'en'];
 
 export interface DocPage {
-  id: string; // URL-Teil: /docs/<slug>/<id>/ ("guide" = Hauptseite)
+  id: string; // URL-Teil im Wiki: /wiki/<slug>/<id>/ ("guide" = Einstieg) - nur für Repos ohne docs/wiki/index.yml
   file: string; // Datei im Repo (Deutsch)
   fileEn?: string; // englische Fassung, falls vorhanden - sonst Hinweis + deutscher Text
   label: Record<Lang, string>;
