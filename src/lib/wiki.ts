@@ -77,7 +77,9 @@ async function fromIndex(src: string, dir: string, where: string, exists: (f: st
         continue;
       }
       seen.add(id);
-      const fileEn = raw.fileEn ? resolve(dir, raw.fileEn) : undefined;
+      // englische Fassung: fileEn oder - ohne Angabe - dieselbe Datei im Unterordner en/
+      let fileEn = raw.fileEn ? resolve(dir, raw.fileEn) : undefined;
+      if (!fileEn && !raw.file.startsWith('/') && (await exists(dir + 'en/' + raw.file))) fileEn = dir + 'en/' + raw.file;
       pages.push({ id, file, fileEn, title: text(raw.title, id) });
     }
     if (pages.length) sections.push({ title: text(s.title), audience: s.audience, pages });
