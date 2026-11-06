@@ -22,7 +22,10 @@ export async function getStaticPaths() {
 
 const { book, id } = Astro.props as { book: WikiBook; id: string };
 const lang = Astro.params.lang as Lang;
-const target = book.pages.find((pg) => pg.id === (id === 'guide' ? '' : id));
+// alter Tab: die Wiki-Seite mit derselben Datei; sonst gleiche id, sonst der Einstieg
+const tab = book.project!.docs.find((d) => d.id === id);
+const target =
+  (tab && book.pages.find((pg) => pg.file === tab.file)) ?? book.pages.find((pg) => pg.id === (id === 'guide' ? '' : id));
 const to = href(lang, pagePath(book, target?.id ?? ''));
 // Sprungmarken der alten README: Überschrift suchen, auf welcher Wiki-Seite sie jetzt steht
 const anchors: Record<string, string> = {};

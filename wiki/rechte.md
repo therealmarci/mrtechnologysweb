@@ -20,7 +20,7 @@ Für ein einzelnes Plugin, z.B. MRsleep:
 /lp group admin permission set mrsleep.groups.admin true
 ```
 
-**Fertige Gruppen für alle Plugins** (Gruppen anlegen, vererben, alle Pakete setzen) zum Kopieren: [Permissions aller Plugins](https://mrtechnology.marcelr.at/wiki/mradmin/permissions/).
+**Fertige Gruppen für alle Plugins** (Gruppen anlegen, vererben, alle Pakete setzen) zum Kopieren: [Permissions aller Plugins](https://mrtechnology.marcelr.at/wiki/mradmin/alle-permissions/).
 
 > [!WARNING]
 > **Vorsicht mit `*`:** Wer `*` oder `<plugin>.*` hat, bekommt auch Ausnahme-Rechte wie `mrsleep.exempt` (zählt nicht zur Schlafquote) oder `mrchunks.exempt` (darf keine Chunkloader haben). Setz solche Rechte für Admin-Gruppen ausdrücklich auf `false`, z.B. `/lp group admin permission set mrsleep.exempt false`.

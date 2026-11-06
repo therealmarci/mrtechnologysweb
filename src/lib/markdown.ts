@@ -57,7 +57,8 @@ function rewriteHref(href: string, ctx: LinkContext, image: boolean) {
   if (/^https?:/i.test(href)) return (!image && ctx.external?.(href)) || href;
   if (/^([a-z]+:|#|\/\/)/i.test(href)) return href;
   const [path, hash] = href.split('#');
-  const full = resolveRepoPath(ctx.file, decodeURIComponent(path));
+  // "/pfad" heißt wie auf GitHub: ab der Wurzel des Repos
+  const full = path.startsWith("/") ? decodeURIComponent(path.slice(1)) : resolveRepoPath(ctx.file, decodeURIComponent(path));
   if (!image && ctx.internal[full]) return ctx.internal[full] + (hash ? `#${hash}` : '');
   const base = image
     ? `https://raw.githubusercontent.com/${ctx.owner}/${ctx.repo}/${ctx.ref ?? 'HEAD'}/`

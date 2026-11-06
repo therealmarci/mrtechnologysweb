@@ -95,7 +95,7 @@ const CHANGELOGS: [string, Text][] = [
 async function legacy(p: Project, read: (f: string) => Promise<string | undefined>) {
   const pages: WikiPage[] = [];
   for (const d of p.docs) {
-    if (await read(d.file)) pages.push({ id: d.id === 'guide' ? '' : d.id, file: d.file, fileEn: d.fileEn, title: d.label });
+    if (await read(d.file)) pages.push({ id: d.id === 'guide' ? '' : (d.wikiId ?? d.id), file: d.file, fileEn: d.fileEn, title: d.label });
   }
   for (const [file, title] of CHANGELOGS) {
     if (await read(file)) pages.push({ id: file.includes('/') ? `changelog-${file.split('/')[0]}` : 'changelog', file, title });

@@ -26,6 +26,7 @@ export interface DocPage {
   file: string; // Datei im Repo (Deutsch)
   fileEn?: string; // englische Fassung, falls vorhanden - sonst Hinweis + deutscher Text
   label: Record<Lang, string>;
+  wikiId?: string; // Adresse im Wiki, falls anders als id (alte Ansicht ohne docs/wiki/index.yml)
 }
 
 export interface Variant {
@@ -64,6 +65,7 @@ const WEB: DocPage = {
 };
 const PERMS: DocPage = {
   id: 'permissions',
+  wikiId: 'alle-permissions', // im Wiki von MRadmin heißt 'permissions' die Seite der MRadmin-Rechte
   file: 'docs/PERMISSIONS.md',
   fileEn: 'docs/PERMISSIONS.en.md',
   label: { de: 'Permissions', en: 'Permissions' },
