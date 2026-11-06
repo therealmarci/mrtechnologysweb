@@ -188,7 +188,8 @@ async function permissionTable(r: Resources, book: WikiBook, lang: Lang, groups:
     ? [`| ${L.perm[lang]} | ${L.def[lang]} | ${L.for[lang]} |`, '|---|---|---|']
     : [`| ${L.perm[lang]} | ${L.def[lang]} | ${L.in[lang]} | ${L.for[lang]} |`, '|---|---|---|---|'];
   for (const p of rows) {
-    let text = tx(texts[p.name], lang);
+    // nur die Sprache der Seite - auf englischen Seiten sonst die (englische) description aus plugin.yml
+    let text = texts[p.name]?.[lang] ?? '';
     if (!text) {
       text = p.description ?? '';
       if (lang === 'de') warn(`${where}: kein deutscher Text für ${p.name} in docs/wiki/permissions.yml`);
