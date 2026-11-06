@@ -1,5 +1,6 @@
 // Rendert eine Wiki-Seite: Markdown -> HTML mit Links auf die Wiki-Seiten statt auf GitHub.
 import { PROJECTS, SITE, type Lang } from '../config';
+import { expandAuto } from './autotables';
 import { renderDoc, type Rendered } from './markdown';
 import { href } from './url';
 import { GENERAL, pagePath, tidyChangelog, type WikiBook, type WikiPage } from './wiki';
@@ -44,6 +45,7 @@ async function render(book: WikiBook, page: WikiPage, lang: Lang): Promise<Rende
   const file = en !== undefined ? page.fileEn! : page.file;
   let src = en ?? (await book.read(page.file)) ?? '';
   if (/CHANGELOG\.md$/.test(file)) src = tidyChangelog(src);
+  src = await expandAuto(src, book, lang, file);
 
   const internal: Record<string, string> = {};
   for (const pg of book.pages) {

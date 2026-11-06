@@ -5,6 +5,7 @@
 import { readFile } from 'node:fs/promises';
 import { parse } from 'yaml';
 import { PROJECTS, SITE, repoUrl, type Lang, type Project } from '../config';
+import { autoSources } from './autotables';
 import { getFile } from './github';
 
 export type Channel = 'stable' | 'preview';
@@ -178,7 +179,9 @@ export async function hasPreview(p: Project): Promise<boolean> {
   if (!b) return false;
   if (!a) return true;
   const sig = async (book: WikiBook) =>
-    JSON.stringify(book.sections) + (await Promise.all(book.pages.flatMap((pg) => [pg.file, pg.fileEn ?? '']).map(book.read))).join('\0');
+    JSON.stringify(book.sections) +
+    (await Promise.all(book.pages.flatMap((pg) => [pg.file, pg.fileEn ?? '']).map(book.read))).join('\0') +
+    (await autoSources(book)); // automatische Tabellen hängen an plugin.yml/config.yml
   return (await sig(a)) !== (await sig(b));
 }
 

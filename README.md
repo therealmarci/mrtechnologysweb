@@ -51,6 +51,16 @@ sections:
 - Links zwischen den Seiten als relative Markdown-Links (`[Befehle](befehle.md#abschnitt)`), Links auf andere Projekte als volle Adresse (`https://mrtechnology.marcelr.at/wiki/mradmin/permissions/`) - beide werden zu Wiki-Links.
 - Fehlt eine Datei oder ist eine `id` doppelt, bricht der Build im CI ab (lokal nur eine Warnung).
 
+**Automatische Tabellen** ([src/lib/autotables.ts](src/lib/autotables.ts)): Eine Zeile mit einem Platzhalter wird beim Build durch eine Tabelle aus den Dateien des Plugins ersetzt (gesucht in `src/main/resources/` bzw. `plugin/src/main/resources/`, vom selben Branch wie die Seite):
+
+| Platzhalter | Tabelle |
+|---|---|
+| `<!-- auto:config -->` | alle Einstellungen pro Abschnitt: Schlüssel, Standardwert (aus `config.yml`), Name und Hilfe (aus `web-config.yml`, DE/EN) |
+| `<!-- auto:permission-groups -->` | `<plugin>.player` und `<plugin>.groups.*` aus `plugin.yml` |
+| `<!-- auto:permissions -->` | alle übrigen Permissions aus `plugin.yml` mit Standard und kleinster Gruppe, die sie enthält |
+
+Den Text „Wofür“ einer Permission liefert `docs/wiki/permissions.yml` (`<permission>: {de: …, en: …}`), sonst die `description` aus `plugin.yml` (ohne deutschen Text warnt der Build).
+
 **Suche:** [Pagefind](https://pagefind.app) baut nach `astro build` einen statischen Index nach `dist/pagefind/` (`npm run build` macht beides). Indexiert werden nur veröffentlichte Wiki-Seiten (`data-pagefind-body`), Filter pro Projekt. Öffnen mit `Strg+K`, `/` oder einem Link mit `?q=<suche>`. Im `npm run dev` gibt es keine Suche.
 
 **Vorschau lokal:** `LOCAL_REPOS=.. npm run build` liest alle Projekte aus den lokalen Repos (Arbeitsstand) statt von GitHub - so sieht man unveröffentlichte Wiki-Seiten. Dann gibt es keine Vorschau-Seiten (beide Stände sind gleich).
