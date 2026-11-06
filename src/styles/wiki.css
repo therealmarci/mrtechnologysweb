@@ -53,6 +53,7 @@
 }
 .site-header .nav { order: 2; }
 .site-header .menu-toggle { order: 4; }
+.site-header .theme-toggle { order: 5; }
 
 @media (max-width: 960px) {
   .search-open { min-width: 0; }
@@ -73,10 +74,10 @@ dialog.search {
   background: var(--bg-2);
   color: var(--text);
   border: 2px solid var(--line-2);
-  box-shadow: 0 24px 80px rgb(0 0 0 / 0.6);
+  box-shadow: var(--dialog-shadow);
 }
 dialog.search[open] { display: flex; }
-dialog.search::backdrop { background: rgb(8 8 12 / 0.7); backdrop-filter: blur(3px); }
+dialog.search::backdrop { background: var(--backdrop); backdrop-filter: blur(3px); }
 .search-box { display: flex; flex-direction: column; width: 100%; min-height: 0; }
 .search-field { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 2px solid var(--line); }
 .search-field svg { width: 18px; height: 18px; fill: var(--grass); flex: none; }
@@ -319,3 +320,8 @@ dialog.search::backdrop { background: rgb(8 8 12 / 0.7); backdrop-filter: blur(3
 
 /* Befehle/Schlüssel in der ersten Tabellenspalte nicht umbrechen (die Tabelle scrollt notfalls) */
 .prose td:first-child code { white-space: nowrap; }
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) { --preview: #6941c6; }
+}
+:root[data-theme='light'] { --preview: #6941c6; }

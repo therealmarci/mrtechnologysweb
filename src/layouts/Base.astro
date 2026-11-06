@@ -39,7 +39,14 @@ const nav = [
     {noindex && <meta name="robots" content="noindex" />}
     <meta property="og:title" content={pageTitle} />
     <meta property="og:description" content={description} />
-    <meta name="theme-color" content="#121216" />
+    <meta name="theme-color" content="#121216" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f3ef" media="(prefers-color-scheme: light)" />
+    <script is:inline>
+      try {
+        const t = localStorage.getItem('mrt-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch {}
+    </script>
     <link rel="icon" href={asset('favicon.svg')} type="image/svg+xml" />
     <link rel="alternate" hreflang={other} href={href(other, path)} />
   </head>
@@ -62,6 +69,10 @@ const nav = [
           }
           <a class="lang" href={href(other, path)} hreflang={other} lang={other}>{t(lang, 'lang.switch')}</a>
         </nav>
+        <button class="theme-toggle" type="button" aria-label={t(lang, 'theme.toggle')} title={t(lang, 'theme.toggle')}>
+          <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 0h2v3H7zM7 13h2v3H7zM0 7h3v2H0zM13 7h3v2h-3zM2 3h1v1H2zM12 3h1v1h-1zM2 12h1v1H2zM12 12h1v1h-1zM3 2h1v2H3zM12 2h1v1h-1zM5 4h6v1H5zM4 5h8v6H4zM5 11h6v1H5z"/></svg>
+          <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 1h4v1H6zM4 2h2v1H4zM3 3h2v1H3zM2 4h2v2H2zM1 6h2v4H1zM2 10h2v2H2zM3 12h2v1H3zM4 13h2v1H4zM6 14h4v1H6zM10 13h2v1h-2zM12 12h1v1h-1zM13 10h1v2h-1zM8 9h5v1H8zM7 8h2v1H7zM6 5h2v3H6zM7 3h2v2H7z"/></svg>
+        </button>
       </div>
     </header>
     <main>
@@ -83,6 +94,14 @@ const nav = [
       btn?.addEventListener('click', () => {
         const open = nav!.classList.toggle('open');
         btn.setAttribute('aria-expanded', String(open));
+      });
+      document.querySelector('.theme-toggle')?.addEventListener('click', () => {
+        const root = document.documentElement;
+        const light = getComputedStyle(root).colorScheme === 'light';
+        root.dataset.theme = light ? 'dark' : 'light';
+        try {
+          localStorage.setItem('mrt-theme', root.dataset.theme);
+        } catch {}
       });
     </script>
   </body>

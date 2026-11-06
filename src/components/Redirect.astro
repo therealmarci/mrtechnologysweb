@@ -22,6 +22,7 @@ const { to, anchors = {} } = Astro.props;
     <style>
       body { background: #121216; color: #ececf1; font-family: system-ui, sans-serif; padding: 16px; }
       a { color: #5ee7df; }
+      @media (prefers-color-scheme: light) { body { background: #f3f3ef; color: #1a1a22; } a { color: #0b7f79; } }
     </style>
     <script is:inline define:vars={{ to, anchors }}>
       const hash = location.hash.slice(1);

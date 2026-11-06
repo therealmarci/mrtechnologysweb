@@ -101,6 +101,7 @@ const de = {
   'footer.privacy': 'Datenschutz',
   'legal.germanOnly': '',
   'lang.switch': 'English',
+  'theme.toggle': 'Hell/Dunkel umschalten',
 } as const;
 
 export type Key = keyof typeof de;
@@ -205,6 +206,7 @@ const en: Record<Key, string> = {
   'footer.privacy': 'Privacy',
   'legal.germanOnly': 'The German version is legally binding; this translation is provided for convenience.',
   'lang.switch': 'Deutsch',
+  'theme.toggle': 'Switch light/dark',
 };
 
 const dict: Record<Lang, Record<Key, string>> = { de, en };
