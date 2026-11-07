@@ -183,12 +183,13 @@ if [ -n "$NOSTART" ]; then
 elif [ "$MODE" = foreground ]; then
     echo "Mode foreground (no systemd and no screen found): start the server with  cd $DIR && ./mrserver.sh run"
 elif yes_no "Start the server automatically with the machine and start it now? [Y/n]" Y; then
-    ./mrserver.sh install
+    # Linger first (needs root): then "mrserver install" finds it on and does not try it itself.
     if [ "$MODE" = systemd ] && [ ! -e "/var/lib/systemd/linger/$(id -un)" ] && command -v sudo >/dev/null 2>&1 && [ -n "$TTY" ]; then
         if yes_no "Keep the server running while you are logged out (sudo loginctl enable-linger $(id -un))? [Y/n]" Y; then
-            sudo loginctl enable-linger "$(id -un)" && echo "Linger is on."
+            sudo loginctl enable-linger "$(id -un)" || true
         fi
     fi
+    ./mrserver.sh install
     ./mrserver.sh start
     STARTED=1
 fi
@@ -197,13 +198,14 @@ fi
 step "Done"
 echo "Server folder:  $DIR"
 if [ -n "$STARTED" ]; then
-    echo "Status:         ./mrserver.sh status      Console: ./mrserver.sh attach"
+    echo "Status:         $DIR/mrserver.sh status"
+    echo "Console:        $DIR/mrserver.sh attach"
 else
     echo "Start:          cd $DIR && ./mrserver.sh install && ./mrserver.sh start"
 fi
 echo
 bold "Next steps"
-echo "  1. Join the server and make yourself operator:  ./mrserver.sh console op <your name>"
+echo "  1. Join the server and make yourself operator:  $DIR/mrserver.sh console op <your name>"
 echo "  2. Web interface account (in game):             /mradmin web setup"
 if [ -n "$WEBURL" ]; then
     echo "     Your reverse proxy: $WEBURL -> http://127.0.0.1:8125"
