@@ -97,7 +97,7 @@ const title = page.id === '' ? bookName : `${page.title[lang]} · ${bookName}`;
                   return (
                     r && (
                       <span class={`badge ${r.prerelease ? 'badge-pre' : 'badge-stable'}`}>
-                        {p.variants.length > 1 && `${v.label[lang]} `}v{r.version} · MC {r.mc}
+                        {p.variants.length > 1 && `${v.label[lang]} `}{r.version} · MC {r.mc}
                       </span>
                     )
                   );

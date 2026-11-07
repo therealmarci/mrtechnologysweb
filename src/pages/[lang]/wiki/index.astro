@@ -131,7 +131,7 @@ const status = await Promise.all(
                 {b.pages.length} {t(lang, 'wiki.pages')}
               </span>
               {status[i] && (
-                <span class={`badge ${status[i]!.prerelease ? 'badge-pre' : 'badge-stable'}`}>v{status[i]!.version}</span>
+                <span class={`badge ${status[i]!.prerelease ? 'badge-pre' : 'badge-stable'}`}>{status[i]!.version}</span>
               )}
             </div>
           </a>

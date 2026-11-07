@@ -30,7 +30,7 @@ const newest = versions.flatMap((v) => [v.pre, v.stable]).filter((r) => r !== un
         <>
           <span class="badge badge-mc">MC {newest.mc}</span>
           <span class={`badge ${newest.prerelease ? 'badge-pre' : 'badge-stable'}`}>
-            v{newest.version} · {t(lang, newest.prerelease ? 'release.pre' : 'release.stable')}
+            {newest.version} · {t(lang, newest.prerelease ? 'release.pre' : 'release.stable')}
           </span>
         </>
       ) : (

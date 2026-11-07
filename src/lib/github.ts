@@ -6,6 +6,7 @@ export interface Release {
   tag: string;
   variant: string;
   mc: string;
+  /** Anzeige: alte Tags "v1.3.1", neues Schema "STA-1.4.0-bu030" / "BET-1.4.1-bu001". */
   version: string;
   prerelease: boolean;
   date: string;
@@ -14,7 +15,8 @@ export interface Release {
   asset?: { name: string; url: string; size: number; downloads: number };
 }
 
-const TAG = /^(?:([a-z]+)-)?mc([\d.]+)-v(.+)$/;
+// Tags: alt "[plugin-|mod-]mc26.3-v1.3.1", neu "[plugin-|mod-]mc26.3-STA-1.4.0-bu030" bzw. "...-BET-...".
+const TAG = /^(?:([a-z]+)-)?mc([\d.]+)-(?:v(.+)|((?:STA|BET)-\d.*))$/i;
 const token = process.env.GITHUB_TOKEN;
 const strict = !!process.env.CI; // im CI lieber abbrechen als eine leere Seite deployen
 
@@ -51,9 +53,9 @@ export function getReleases(p: Project): Promise<Release[]> {
         const jar = r.assets.find((a: any) => a.name.endsWith('.jar')) ?? r.assets[0];
         return {
           tag: r.tag_name,
-          variant: m[1] ?? '',
+          variant: (m[1] ?? '').toLowerCase(),
           mc: m[2],
-          version: m[3],
+          version: m[3] !== undefined ? `v${m[3]}` : m[4].replace(/^(sta|bet)/i, (c) => c.toUpperCase()),
           prerelease: r.prerelease,
           date: r.published_at,
           url: r.html_url,

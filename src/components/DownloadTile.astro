@@ -80,13 +80,13 @@ const selectId = `mc-${p.slug}${compact ? '-c' : ''}`;
                   {main ? (
                     <>
                       <span class="dl-ver">
-                        v{main.version}
+                        {main.version}
                         {main.prerelease && <span class="badge badge-pre">{t(lang, 'release.pre')}</span>}
                       </span>
                       <span class="dl-meta">{meta(main)}</span>
                       {newerPre?.asset && (
                         <a class="dl-pre" href={newerPre.asset.url}>
-                          {t(lang, 'release.pre')} v{newerPre.version} ⬇
+                          {t(lang, 'release.pre')} {newerPre.version} ⬇
                         </a>
                       )}
                     </>
@@ -121,7 +121,7 @@ const selectId = `mc-${p.slug}${compact ? '-c' : ''}`;
                       <ul>
                         {l.older.map((r) => (
                           <li>
-                            <span class="dl-ver">v{r.version}</span>
+                            <span class="dl-ver">{r.version}</span>
                             {r.prerelease && <span class="badge badge-pre">{t(lang, 'release.preShort')}</span>}
                             <span class="dl-meta">{dateFmt(lang, r.date)}</span>
                             <span class="dl-links">
