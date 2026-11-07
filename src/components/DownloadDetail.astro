@@ -1,0 +1,154 @@
+---
+// Rechte Seite der Download-Seite für ein Projekt: Version des gewählten Kanals, Download, Neues in dieser Version und
+// der Versionsverlauf. Alle Minecraft-Versionen und beide Kanäle werden fertig gerendert, die Seite blendet per
+// data-mc / data-ch um.
+import PixelIcon from './PixelIcon.astro';
+import type { Lang, Project } from '../config';
+import { t, dateFmt } from '../i18n';
+import {
+  getReleases,
+  formatSize,
+  pickChannels,
+  releaseHighlights,
+  versionParts,
+  type Release,
+} from '../lib/github';
+import { href, asset } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+  project: Project;
+  mcVersions: string[];
+}
+const { lang, project: p, mcVersions } = Astro.props;
+const releases = await getReleases(p);
+const multi = p.variants.length > 1;
+const meta = (r: Release) => [dateFmt(lang, r.date), r.asset && formatSize(r.asset.size)].filter(Boolean).join(' · ');
+const SHOWN = 5;
+---
+
+<section class="dlx-panel" data-panel={p.slug} aria-labelledby={`dlx-${p.slug}`}>
+  <header class="dlx-head">
+    <div class="card-icon"><PixelIcon name={p.icon} /></div>
+    <div class="dlx-title">
+      <h2 id={`dlx-${p.slug}`}>{p.name}</h2>
+      <span>{p.kind[lang]} · {p.tagline[lang]}</span>
+    </div>
+    <nav class="dlx-links">
+      <a href={href(lang, `wiki/${p.slug}`)}>{t(lang, 'downloads.guide')}</a>
+      <a href={asset(`report/${p.slug}/`)}>{t(lang, 'downloads.report')}</a>
+    </nav>
+  </header>
+
+  {
+    mcVersions.map((mc, i) => {
+      const lines = p.variants.map((v) => ({ v, ...pickChannels(releases, mc, v.id) }));
+      const history = lines.flatMap((l) => l.all.map((r) => ({ v: l.v, r })));
+      return (
+        <div class="dlx-body" data-mc={mc} hidden={i > 0}>
+          {history.length === 0 ? (
+            <p class="dlx-none">
+              {t(lang, 'release.notFor')} {mc}
+            </p>
+          ) : (
+            <>
+              <div class:list={['dlx-vars', { multi }]}>
+                {lines.map(({ v, stable, beta }) => (
+                  <div class="dlx-var">
+                    {multi && <h3 class="dlx-variant">{v.label[lang]}</h3>}
+                    {!stable ? (
+                      <p class="dlx-none">
+                        {t(lang, 'release.notFor')} {mc}
+                      </p>
+                    ) : (
+                      (['stable', 'beta'] as const).map((ch) => {
+                        const r = ch === 'stable' ? stable : beta!;
+                        const parts = versionParts(r.version);
+                        const highlights = releaseHighlights(r.body);
+                        const newerBeta = ch === 'stable' && !r.prerelease && beta?.prerelease ? beta : undefined;
+                        return (
+                          <div class="dlx-rel" data-ch={ch}>
+                            <div class="dlx-ver">
+                              <span class="dlx-num">{parts.number}</span>
+                              {r.prerelease && <span class="dlx-beta">Beta</span>}
+                              {parts.build !== undefined && (
+                                <span class="dlx-build">
+                                  {t(lang, 'downloads.build')} {parts.build}
+                                </span>
+                              )}
+                            </div>
+                            <p class="dlx-meta">{meta(r)}</p>
+                            {r.asset && (
+                              <a class="btn btn-grass dlx-btn" href={r.asset.url} title={r.asset.name}>
+                                ⬇ {t(lang, 'card.download')}
+                              </a>
+                            )}
+                            {ch === 'stable' && r.prerelease && <p class="dlx-note warn">{t(lang, 'downloads.onlyBeta')}</p>}
+                            {ch === 'beta' && r.prerelease && <p class="dlx-note warn">{t(lang, 'downloads.betaNote')}</p>}
+                            {ch === 'beta' && !r.prerelease && <p class="dlx-note">{t(lang, 'downloads.stableIsNewest')}</p>}
+                            {newerBeta && (
+                              <button type="button" class="dlx-note dlx-switch" data-switch="beta">
+                                {t(lang, 'downloads.newerBeta')} {versionParts(newerBeta.version).number} →
+                              </button>
+                            )}
+                            {highlights.length > 0 && (
+                              <div class="dlx-news">
+                                <h4>
+                                  {t(lang, 'downloads.whatsNew')} {parts.number}
+                                </h4>
+                                <ul>
+                                  {highlights.slice(0, SHOWN).map((h) => (
+                                    <li>{h.title}</li>
+                                  ))}
+                                </ul>
+                                <a href={r.url} target="_blank" rel="noopener">
+                                  {highlights.length === SHOWN + 1
+                                    ? t(lang, 'downloads.moreOne')
+                                    : highlights.length > SHOWN
+                                    ? t(lang, 'downloads.more').replace('{n}', String(highlights.length - SHOWN))
+                                    : t(lang, 'downloads.allChanges')}{' '}
+                                  →
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <details class="dlx-history">
+                <summary>
+                  {t(lang, 'downloads.history')} ({history.length})
+                </summary>
+                <ul>
+                  {history.map(({ v, r }) => {
+                    const parts = versionParts(r.version);
+                    return (
+                      <li>
+                        <span class="dlx-hver">
+                          {multi && <span class="dlx-hvar">{v.label[lang]}</span>}
+                          {parts.number}
+                          {r.prerelease && <span class="dlx-beta small">Beta</span>}
+                        </span>
+                        <span class="dlx-hdate">{dateFmt(lang, r.date)}</span>
+                        <span class="dlx-hlinks">
+                          <a href={r.url} target="_blank" rel="noopener">
+                            {t(lang, 'release.changelog')}
+                          </a>
+                          {r.asset && <a href={r.asset.url}>.jar</a>}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            </>
+          )}
+        </div>
+      );
+    })
+  }
+</section>

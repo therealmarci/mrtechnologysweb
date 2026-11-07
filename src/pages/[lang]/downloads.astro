@@ -1,25 +1,28 @@
 ---
-// Download-Seite: oben der Installer (ganzer Server mit einem Befehl), darunter eine Leiste für Minecraft-Version und
-// Kanal (Stable / Beta) und eine Zeile pro Projekt. Dev-Builds gibt es hier bewusst nicht (nur mit Freigabetoken).
+// Download-Seite: links die Liste (Neuer Server + alle Projekte), rechts das gewählte Projekt. Minecraft-Version und
+// Kanal (Stable / Beta) stehen über der rechten Seite und gelten für alle Projekte. Auswahl per #<projekt> in der
+// Adresse (Kurzlink /download/<projekt>/). Dev-Builds gibt es hier bewusst nicht (nur mit Freigabetoken).
 import Base from '../../layouts/Base.astro';
-import DownloadRow from '../../components/DownloadRow.astro';
+import DownloadDetail from '../../components/DownloadDetail.astro';
 import InstallTile from '../../components/InstallTile.astro';
+import PixelIcon from '../../components/PixelIcon.astro';
 import { PROJECTS, type Lang } from '../../config';
 import { t } from '../../i18n';
 import { langPaths } from '../../lib/paths';
 import { getReleases } from '../../lib/github';
-import { href } from '../../lib/url';
 
 export const getStaticPaths = langPaths;
 const lang = Astro.params.lang as Lang;
 
-const all = (await Promise.all(PROJECTS.map((p) => getReleases(p)))).flat();
+const perProject = await Promise.all(PROJECTS.map((p) => getReleases(p)));
+const all = perProject.flat();
 const mcVersions = [...new Set(all.map((r) => r.mc))].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
 const onlyBeta = (mc: string) => !all.some((r) => r.mc === mc && !r.prerelease);
+const betaOnlyProject = (i: number) => perProject[i].length > 0 && perProject[i].every((r) => r.prerelease);
 ---
 
 <Base lang={lang} path="downloads" title={t(lang, 'nav.downloads')}>
-  <div class="wrap">
+  <div class="wrap dlx" data-dl-root data-channel="stable" data-view="server">
     <div class="doc-head">
       <div>
         <h1>{t(lang, 'nav.downloads')}</h1>
@@ -27,60 +30,67 @@ const onlyBeta = (mc: string) => !all.some((r) => r.mc === mc && !r.prerelease);
       </div>
     </div>
 
-    <InstallTile lang={lang} />
+    <div class="dlx-layout">
+      <nav class="dlx-nav panel" aria-label={t(lang, 'nav.downloads')}>
+        <a class="dlx-item" href="#server" data-item="server">
+          <span class="dlx-icon"><PixelIcon name="grass" /></span>
+          <span class="dlx-item-text">
+            <strong>{t(lang, 'downloads.server')}</strong>
+            <small>{t(lang, 'downloads.serverSub')}</small>
+          </span>
+        </a>
+        <p class="dlx-nav-label">{t(lang, 'downloads.projects')}</p>
+        {
+          PROJECTS.map((p, i) => (
+            <a class="dlx-item" href={`#${p.slug}`} data-item={p.slug}>
+              <span class="dlx-icon">
+                <PixelIcon name={p.icon} />
+              </span>
+              <span class="dlx-item-text">
+                <strong>{p.name}</strong>
+                <small>{p.kind[lang]}</small>
+              </span>
+              {betaOnlyProject(i) && <span class="dlx-beta small">Beta</span>}
+            </a>
+          ))
+        }
+      </nav>
 
-    <section class="dl-root" data-dl-root data-channel="stable" aria-labelledby="dl-plugins">
-      <div class="dl-head">
-        <h2 id="dl-plugins">{t(lang, 'downloads.single')}</h2>
-        <p class="muted">{t(lang, 'downloads.singleLead')}</p>
-      </div>
-
-      <div class="panel dl-bar">
-        <label class="dl-field">
-          <span>Minecraft</span>
-          <select data-dl-mc disabled={mcVersions.length < 2}>
-            {mcVersions.map((mc) => (
-              <option value={mc}>
-                {mc}
-                {onlyBeta(mc) && ` (${t(lang, 'downloads.beta')})`}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div class="dl-field">
-          <span id="dl-channel-label">{t(lang, 'downloads.channel')}</span>
-          <div class="dl-channels" role="radiogroup" aria-labelledby="dl-channel-label">
+      <div class="dlx-main">
+        <div class="dlx-bar">
+          <label class="dlx-mc">
+            Minecraft
+            <select data-dl-mc disabled={mcVersions.length < 2}>
+              {mcVersions.map((mc) => (
+                <option value={mc}>
+                  {mc}
+                  {onlyBeta(mc) && ' (Beta)'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div class="dlx-seg" role="radiogroup" aria-label={t(lang, 'downloads.channel')}>
             <button type="button" role="radio" aria-checked="true" data-channel="stable">
-              <strong>{t(lang, 'downloads.stable')}</strong>
-              <small>{t(lang, 'downloads.stableHint')}</small>
+              {t(lang, 'downloads.stable')}
             </button>
             <button type="button" role="radio" aria-checked="false" data-channel="beta">
-              <strong>{t(lang, 'downloads.beta')}</strong>
-              <small>{t(lang, 'downloads.betaHint')}</small>
+              {t(lang, 'downloads.beta')}
             </button>
           </div>
         </div>
-      </div>
 
-      <div class="dl-betawarn" role="note">
-        <strong>{t(lang, 'downloads.betaWarnTitle')}</strong>
-        <span>{t(lang, 'downloads.betaWarn')}</span>
+        <section class="dlx-panel dlx-server" data-panel="server" aria-label={t(lang, 'downloads.server')}>
+          <InstallTile lang={lang} embedded />
+        </section>
+        {PROJECTS.map((p) => <DownloadDetail lang={lang} project={p} mcVersions={mcVersions} />)}
       </div>
-
-      <div class="dl-list">
-        {PROJECTS.map((p) => <DownloadRow lang={lang} project={p} mcVersions={mcVersions} />)}
-      </div>
-
-      <p class="dl-foot">
-        {t(lang, 'downloads.mradminTip')}{' '}
-        <a href={href(lang, 'wiki/mradmin/plugins')}>{t(lang, 'downloads.mradminTipLink')}</a>
-      </p>
-    </section>
+    </div>
   </div>
 </Base>
 
 <script>
-  // Kanal und Minecraft-Version umschalten; die Wahl merkt sich der Browser (?channel=beta in der Adresse gewinnt).
+  // Projekt aus der Adresse (#mradmin), Kanal und Minecraft-Version umschalten. Kanal und Version merkt sich der
+  // Browser; ?channel=beta in der Adresse gewinnt.
   const root = document.querySelector<HTMLElement>('[data-dl-root]');
   if (root) {
     const store = {
@@ -99,6 +109,21 @@ const onlyBeta = (mc: string) => !all.some((r) => r.mc === mc && !r.prerelease);
         }
       },
     };
+
+    const panels = [...root.querySelectorAll<HTMLElement>('[data-panel]')];
+    const items = [...root.querySelectorAll<HTMLElement>('[data-item]')];
+    const show = (id: string, scroll: boolean) => {
+      if (!panels.some((p) => p.dataset.panel === id)) id = 'server';
+      panels.forEach((p) => (p.hidden = p.dataset.panel !== id));
+      items.forEach((a) => (a.dataset.item === id ? a.setAttribute('aria-current', 'true') : a.removeAttribute('aria-current')));
+      root.dataset.view = id;
+      if (scroll && matchMedia('(max-width: 860px)').matches) {
+        root.querySelector('.dlx-main')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    addEventListener('hashchange', () => show(location.hash.slice(1), true));
+    show(location.hash.slice(1), false);
+
     const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-channel]')];
     const setChannel = (ch: string, remember = true) => {
       if (ch !== 'stable' && ch !== 'beta') return;
@@ -108,10 +133,7 @@ const onlyBeta = (mc: string) => !all.some((r) => r.mc === mc && !r.prerelease);
     };
     buttons.forEach((b) => b.addEventListener('click', () => setChannel(b.dataset.channel!)));
     root.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) =>
-      b.addEventListener('click', () => {
-        setChannel(b.dataset.switch!);
-        b.closest('.dl-row')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }),
+      b.addEventListener('click', () => setChannel(b.dataset.switch!)),
     );
     const fromUrl = new URLSearchParams(location.search).get('channel');
     setChannel(fromUrl ?? store.get('mrt-dl-channel') ?? 'stable', !!fromUrl);

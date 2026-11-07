@@ -8,8 +8,10 @@ import { href, asset } from '../lib/url';
 
 interface Props {
   lang: Lang;
+  /** schlicht, ohne eigenen Rahmen (rechte Seite der Download-Seite) */
+  embedded?: boolean;
 }
-const { lang } = Astro.props;
+const { lang, embedded = false } = Astro.props;
 const commands = {
   linux: `curl -fsSL ${SITE.url}/install.sh | sh`,
   windows: `irm ${SITE.url}/install.ps1 | iex`,
@@ -17,7 +19,7 @@ const commands = {
 const steps = ['install.step1', 'install.step2', 'install.step3', 'install.step4'] as const;
 ---
 
-<section class="panel install-tile" aria-labelledby="install-title" data-install>
+<section class:list={['install-tile', embedded ? 'embedded' : 'panel']} aria-labelledby="install-title" data-install>
   <div class="it-intro">
     <div class="card-icon it-icon"><PixelIcon name="grass" /></div>
     <div>

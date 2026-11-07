@@ -103,6 +103,22 @@ export function pickChannels(releases: Release[], mc: string, variant: string): 
   return { stable: all.find((r) => !r.prerelease) ?? all[0], beta: all[0], all };
 }
 
+/** Kurzfassung eines Release-Textes: die fetten Titel der Einträge ("- **Titel:** …") mit ihrem Abschnitt ("### Neu"). */
+export function releaseHighlights(body: string): { group: string; title: string }[] {
+  const out: { group: string; title: string }[] = [];
+  let group = '';
+  for (const line of body.split(/\r?\n/)) {
+    const h = /^#{2,4}\s+(.+?)\s*$/.exec(line);
+    if (h) {
+      group = h[1];
+      continue;
+    }
+    const m = /^\s*[-*]\s+\*\*(.+?)\*\*/.exec(line);
+    if (m) out.push({ group, title: m[1].replace(/:\s*$/, '').replace(/`/g, '') });
+  }
+  return out;
+}
+
 export async function totalDownloads(p: Project) {
   return (await getReleases(p)).reduce((n, r) => n + (r.asset?.downloads ?? 0), 0);
 }
