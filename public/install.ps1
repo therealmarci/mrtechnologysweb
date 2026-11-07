@@ -7,6 +7,8 @@
 #     $env:MR_DIR = 'D:\Minecraft'        default: %USERPROFILE%\MINECRAFT\Server (must be empty or missing)
 #     $env:MR_MEMORY_MIN = '2G'           $env:MR_MEMORY_MAX = '6G'
 #     $env:MR_WEB_URL = 'https://admin.example.com'
+#     $env:MR_CHANNEL = 'beta'            update channel stable or beta (beta = newest MRadmin beta now)
+#     $env:MR_DEV_TOKEN = '...'           dev builds (release token; or MR_CHANNEL = 'dev' and type it in)
 #     $env:MR_ACCEPT_EULA = '1'           accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
 #     $env:MR_YES = '1'                   take the suggested answers (needs MR_ACCEPT_EULA)
 #     $env:MR_START = '0'                 only set up, no autostart and no start
@@ -110,6 +112,28 @@
         Fail "'$webUrl' is not an address like https://admin.example.com"
     }
 
+    # ------------------------------------------------------------------ Update channel
+    Step 'Updates'
+    $channel = "$env:MR_CHANNEL".Trim().ToLower()
+    $devToken = $env:MR_DEV_TOKEN
+    if ($devToken) { $channel = 'dev' }
+    if (-not $channel) {
+        Write-Host 'Stable versions are tested. Betas bring new features earlier, but may still have bugs.'
+        if (YesNo 'Use beta versions (newest MRadmin beta now, beta updates later)? [y/N]' 'N') { $channel = 'beta' } else { $channel = 'stable' }
+    }
+    if ($channel -notin @('stable', 'beta', 'dev')) { Fail "Unknown channel '$channel' - stable or beta." }
+    if ($channel -eq 'dev' -and -not $devToken) {
+        if ($yes) { Fail 'The dev channel needs the release token (MR_DEV_TOKEN).' }
+        $secure = Read-Host 'Release token for dev builds' -AsSecureString
+        $devToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+        if (-not $devToken) { Fail 'No release token given.' }
+    }
+    switch ($channel) {
+        'beta' { Write-Host 'Channel: beta (change it later in the web interface: Server -> Plugins)' }
+        'dev' { Write-Host 'Channel: dev builds for MRadmin, beta for the other plugins' }
+        default { Write-Host 'Channel: stable' }
+    }
+
     # ------------------------------------------------------------------ EULA
     Step 'Minecraft EULA'
     if ($env:MR_ACCEPT_EULA -ne '1') {
@@ -122,11 +146,13 @@
     Step 'Downloading MRadmin and Paper'
     $cmdFile = Join-Path $dir 'mrserver.cmd'
     Invoke-WebRequest "$release/mrserver.cmd" -OutFile $cmdFile -UseBasicParsing
-    $setup = @('setup', '--accept-eula', '--memory-min', $min, '--memory-max', $max)
+    $setup = @('setup', '--accept-eula', '--memory-min', $min, '--memory-max', $max, '--channel', $channel)
     if ($webUrl) { $setup += @('--web-url', $webUrl) } else { $setup += '--web' }
     Push-Location $dir
     try {
-        & $cmdFile @setup
+        # The token goes through the environment, not as an argument (arguments show in process lists).
+        $env:MRSERVER_DEV_TOKEN = $devToken
+        try { & $cmdFile @setup } finally { Remove-Item Env:MRSERVER_DEV_TOKEN -ErrorAction SilentlyContinue }
         if ($LASTEXITCODE -ne 0) { Fail "Setup failed (exit code $LASTEXITCODE)." }
 
         # ------------------------------------------------------------------ Autostart + start

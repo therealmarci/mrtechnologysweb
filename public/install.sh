@@ -8,6 +8,8 @@
 #     --dir <folder>        default: ~/MINECRAFT/Server (must be empty or missing)
 #     --memory-min <size>   e.g. 2G      --memory-max <size>   e.g. 6G
 #     --web-url <address>   public address of the web interface, e.g. https://admin.example.com
+#     --beta | --stable     update channel: beta = newest MRadmin beta now and beta updates later
+#     --dev                 dev builds (only with the release token; asked, or MR_DEV_TOKEN)
 #     --accept-eula         accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
 #     --yes                 take the suggested answers (needs --accept-eula)
 #     --no-start            only set up, no autostart and no start
@@ -27,6 +29,9 @@ WEBURL=""
 YES=""
 RELEASE="${MR_RELEASE:-https://github.com/therealmarci/mradmin/releases/latest/download}"
 NOSTART=""
+CHANNEL=""
+DEVTOKEN="${MR_DEV_TOKEN:-}"
+[ -z "$DEVTOKEN" ] || CHANNEL=dev
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -36,6 +41,9 @@ while [ $# -gt 0 ]; do
         --web-url) WEBURL=$2; shift 2 ;;
         --accept-eula) EULA=1; shift ;;
         --no-start) NOSTART=1; shift ;;
+        --beta) CHANNEL=beta; shift ;;
+        --stable) CHANNEL=stable; shift ;;
+        --dev) CHANNEL=dev; shift ;;
         --yes|-y) YES=1; shift ;;
         *) echo "Unknown option: $1"; exit 2 ;;
     esac
@@ -154,6 +162,28 @@ fi
 if [ -n "$WEBURL" ] && ! echo "$WEBURL" | grep -Eq '^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$'; then
     fail "'$WEBURL' is not an address like https://admin.example.com"
 fi
+# ------------------------------------------------------------------ Update channel
+step "Updates"
+if [ -z "$CHANNEL" ]; then
+    echo "Stable versions are tested. Betas bring new features earlier, but may still have bugs."
+    if yes_no "Use beta versions (newest MRadmin beta now, beta updates later)? [y/N]" N; then CHANNEL=beta; else CHANNEL=stable; fi
+fi
+if [ "$CHANNEL" = dev ] && [ -z "$DEVTOKEN" ]; then
+    [ -n "$TTY" ] || fail "The dev channel needs the release token (MR_DEV_TOKEN)."
+    printf 'Release token for dev builds: ' >/dev/tty
+    stty -echo </dev/tty 2>/dev/null || true
+    read -r DEVTOKEN </dev/tty || DEVTOKEN=""
+    stty echo </dev/tty 2>/dev/null || true
+    printf '
+' >/dev/tty
+    [ -n "$DEVTOKEN" ] || fail "No release token given."
+fi
+case "$CHANNEL" in
+    beta) echo "Channel: beta (change it later in the web interface: Server -> Plugins)" ;;
+    dev) echo "Channel: dev builds for MRadmin, beta for the other plugins" ;;
+    *) echo "Channel: stable" ;;
+esac
+
 # ------------------------------------------------------------------ EULA
 step "Minecraft EULA"
 if [ -z "$EULA" ]; then
@@ -167,11 +197,10 @@ step "Downloading MRadmin and Paper"
 fetch "$RELEASE/mrserver.sh" "$DIR/mrserver.sh" || fail "Could not download mrserver.sh from the MRadmin release."
 chmod +x "$DIR/mrserver.sh"
 cd "$DIR"
-if [ -n "$WEBURL" ]; then
-    sh ./mrserver.sh setup --accept-eula --memory-min "$MIN" --memory-max "$MAX" --web-url "$WEBURL" </dev/null
-else
-    sh ./mrserver.sh setup --accept-eula --memory-min "$MIN" --memory-max "$MAX" --web </dev/null
-fi
+set -- --accept-eula --memory-min "$MIN" --memory-max "$MAX" --channel "$CHANNEL"
+if [ -n "$WEBURL" ]; then set -- "$@" --web-url "$WEBURL"; else set -- "$@" --web; fi
+# The token goes through the environment, not as an argument (arguments show in process lists).
+MRSERVER_DEV_TOKEN="$DEVTOKEN" sh ./mrserver.sh setup "$@" </dev/null \n    || fail "Setup failed - see above. ($DIR may be half set up; delete it before trying again.)"
 
 MODE=$(sed -n 's/^mode=//p' mrserver.properties 2>/dev/null | tr -d '\r' | tail -n 1)
 
