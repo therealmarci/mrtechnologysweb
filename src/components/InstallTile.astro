@@ -1,0 +1,91 @@
+---
+// Kachel "Neuen Server installieren" auf der Download-Seite: ein Befehl für Linux bzw. Windows, der einen Paper-Server
+// mit MRadmin einrichtet (public/install.sh, public/install.ps1). Das Betriebssystem ist vorausgewählt.
+import PixelIcon from './PixelIcon.astro';
+import { SITE, type Lang } from '../config';
+import { t } from '../i18n';
+import { href, asset } from '../lib/url';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const commands = {
+  linux: `curl -fsSL ${SITE.url}/install.sh | sh`,
+  windows: `irm ${SITE.url}/install.ps1 | iex`,
+};
+const steps = ['install.step1', 'install.step2', 'install.step3', 'install.step4'] as const;
+---
+
+<section class="panel install-tile" aria-labelledby="install-title" data-install>
+  <div class="it-intro">
+    <div class="card-icon it-icon"><PixelIcon name="grass" /></div>
+    <div>
+      <p class="it-kicker">{t(lang, 'install.kicker')}</p>
+      <h2 id="install-title">{t(lang, 'install.title')}</h2>
+      <p class="it-lead">{t(lang, 'install.lead')}</p>
+    </div>
+  </div>
+
+  <ol class="it-steps">
+    {steps.map((s, i) => (
+      <li>
+        <span class="it-num">{i + 1}</span>
+        <span>{t(lang, s)}</span>
+      </li>
+    ))}
+  </ol>
+
+  <div class="it-run">
+    <div class="it-os" role="tablist" aria-label={t(lang, 'install.os')}>
+      <button type="button" role="tab" data-os="linux" aria-selected="true">Linux</button>
+      <button type="button" role="tab" data-os="windows" aria-selected="false">Windows</button>
+    </div>
+    {(['linux', 'windows'] as const).map((os) => (
+      <div class="it-panel" data-os-panel={os} hidden={os !== 'linux'}>
+        <span class="it-where">{t(lang, os === 'linux' ? 'install.whereLinux' : 'install.whereWindows')}</span>
+        <div class="it-cmd">
+          <code>{commands[os]}</code>
+          <button type="button" class="btn btn-grass btn-small" data-copy={commands[os]}>{t(lang, 'install.copy')}</button>
+        </div>
+        <p class="it-note">{t(lang, os === 'linux' ? 'install.noteLinux' : 'install.noteWindows')}</p>
+      </div>
+    ))}
+    <p class="it-links">
+      <a href={asset('install.sh')}>{t(lang, 'install.viewSh')}</a>
+      <span aria-hidden="true">·</span>
+      <a href={asset('install.ps1')}>{t(lang, 'install.viewPs1')}</a>
+      <span aria-hidden="true">·</span>
+      <a href={href(lang, 'wiki/mradmin/starter')}>{t(lang, 'install.guide')}</a>
+    </p>
+  </div>
+</section>
+
+<script>
+  // Betriebssystem vorauswählen, Reiter umschalten, Befehl kopieren.
+  document.querySelectorAll<HTMLElement>('[data-install]').forEach((tile) => {
+    const tabs = [...tile.querySelectorAll<HTMLButtonElement>('[data-os]')];
+    const show = (os: string) => {
+      tabs.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.os === os)));
+      tile.querySelectorAll<HTMLElement>('[data-os-panel]').forEach((p) => (p.hidden = p.dataset.osPanel !== os));
+    };
+    tabs.forEach((b) => b.addEventListener('click', () => show(b.dataset.os!)));
+    if (/Windows/i.test(navigator.userAgent)) show('windows');
+    const label = document.documentElement.lang === 'de' ? ['Kopieren', 'Kopiert ✓'] : ['Copy', 'Copied ✓'];
+    tile.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(btn.dataset.copy!);
+          btn.textContent = label[1];
+        } catch {
+          // ohne Zwischenablage (http, alte Browser): Befehl markieren
+          const range = document.createRange();
+          range.selectNodeContents(btn.previousElementSibling!);
+          getSelection()?.removeAllRanges();
+          getSelection()?.addRange(range);
+        }
+        setTimeout(() => (btn.textContent = label[0]), 1500);
+      });
+    });
+  });
+</script>

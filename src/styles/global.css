@@ -812,6 +812,203 @@ h2 {
   margin-top: 0.25em;
 }
 
+/* ---------------------------------------------------------------- Install tile (downloads) */
+
+.install-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-areas: 'intro run' 'steps run';
+  gap: 18px 36px;
+  margin-bottom: 28px;
+  padding-top: 30px;
+  background: linear-gradient(180deg, var(--grass-soft), var(--panel) 55%);
+  overflow: hidden;
+}
+
+/* Grasblock-Kante oben: Gras mit "Pixel"-Zacken auf Erde */
+.install-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 12px;
+  background:
+    linear-gradient(90deg, var(--grass) 0 12px, var(--grass-2) 12px 24px, var(--grass) 24px 30px, var(--grass-2) 30px 36px) 0 0 / 36px 8px repeat-x,
+    var(--dirt);
+  border-bottom: 2px solid var(--edge);
+}
+
+.it-intro {
+  grid-area: intro;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.it-icon {
+  flex: none;
+}
+
+.it-kicker {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--grass);
+}
+
+.install-tile h2 {
+  margin: 4px 0 8px;
+  font-size: 1.7rem;
+  line-height: 1.15;
+  text-shadow: var(--title-shadow);
+}
+
+.it-lead {
+  margin: 0;
+  color: var(--muted);
+}
+
+.it-steps {
+  grid-area: steps;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+}
+
+.it-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.it-num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font: 1.05rem/1 var(--pixel);
+  color: #fff;
+  text-shadow: 1px 1px 0 rgb(0 0 0 / 0.45);
+  background: var(--grass-2);
+  border: 2px solid var(--edge);
+  box-shadow: var(--bevel);
+}
+
+.it-run {
+  grid-area: run;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  align-self: center;
+}
+
+.it-os {
+  display: flex;
+  gap: 6px;
+}
+
+.it-os button {
+  font: 700 0.9rem/1 var(--sans);
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 2px solid var(--edge);
+  box-shadow: var(--bevel);
+  padding: 9px 16px;
+  cursor: pointer;
+}
+
+.it-os button[aria-selected='true'] {
+  color: #fff;
+  background: var(--grass-2);
+  text-shadow: 1px 1px 0 rgb(0 0 0 / 0.4);
+}
+
+.it-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.it-panel[hidden] {
+  display: none;
+}
+
+.it-where {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.it-cmd {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.it-cmd code {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  font: 0.92rem/1.4 var(--mono);
+  color: var(--text);
+  background: var(--code-bg);
+  border: 2px solid var(--edge);
+  box-shadow: var(--bevel-in);
+  white-space: normal;
+  overflow-wrap: anywhere;
+
+}
+
+.it-cmd .btn {
+  flex: none;
+}
+
+.it-note,
+.it-links {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--faint);
+}
+
+.it-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+@media (max-width: 860px) {
+  .install-tile {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'intro' 'steps' 'run';
+  }
+
+  .install-tile h2 {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .it-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .it-cmd {
+    flex-direction: column;
+  }
+}
+
 /* ---------------------------------------------------------------- Download tiles */
 
 .dl-grid {

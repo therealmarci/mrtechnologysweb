@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import DownloadTile from '../../components/DownloadTile.astro';
+import InstallTile from '../../components/InstallTile.astro';
 import { PROJECTS, type Lang } from '../../config';
 import { t } from '../../i18n';
 import { langPaths } from '../../lib/paths';
@@ -17,6 +18,7 @@ const lang = Astro.params.lang as Lang;
         <p>{t(lang, 'downloads.intro')}</p>
       </div>
     </div>
+    <InstallTile lang={lang} />
     <div class="dl-grid">
       {PROJECTS.map((p) => <DownloadTile lang={lang} project={p} />)}
     </div>
