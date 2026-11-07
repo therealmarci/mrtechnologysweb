@@ -81,6 +81,28 @@ export async function latest(p: Project, v: Variant) {
   return { stable, pre };
 }
 
+/** "STA-1.4.0-bu030" -> {number: "1.4.0", build: 30}; alte "v1.3.1" -> {number: "1.3.1"}. */
+export function versionParts(version: string): { number: string; build?: number } {
+  const m = /^(?:STA|BET)-(.+)-bu0*(\d+)$/i.exec(version);
+  if (m) return { number: m[1], build: Number(m[2]) };
+  return { number: version.replace(/^v/, '') };
+}
+
+export interface ChannelPick {
+  /** neueste stabile Version, sonst (Plugin hat noch keine) die neueste Beta */
+  stable?: Release;
+  /** Kanal Beta: die neueste Version überhaupt (Beta bekommt auch Stables) */
+  beta?: Release;
+  /** alle Releases dieser Minecraft-Version und Variante, neueste zuerst */
+  all: Release[];
+}
+
+/** Was die Download-Seite für eine Minecraft-Version und Variante je Kanal anbietet. Beta = GitHub-Vorabversion. */
+export function pickChannels(releases: Release[], mc: string, variant: string): ChannelPick {
+  const all = releases.filter((r) => r.mc === mc && r.variant === variant);
+  return { stable: all.find((r) => !r.prerelease) ?? all[0], beta: all[0], all };
+}
+
 export async function totalDownloads(p: Project) {
   return (await getReleases(p)).reduce((n, r) => n + (r.asset?.downloads ?? 0), 0);
 }
