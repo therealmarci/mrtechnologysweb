@@ -1297,6 +1297,11 @@ h2 {
   border-left: 2px solid var(--edge);
 }
 
+.dlx-seg button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .dlx-seg button[aria-checked='true'] {
   color: var(--text);
   background: var(--panel-2);

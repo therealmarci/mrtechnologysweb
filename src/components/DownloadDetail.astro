@@ -44,8 +44,10 @@ const SHOWN = 5;
     mcVersions.map((mc, i) => {
       const lines = p.variants.map((v) => ({ v, ...pickChannels(releases, mc, v.id) }));
       const history = lines.flatMap((l) => l.all.map((r) => ({ v: l.v, r })));
+      // Ohne Stable für diese Minecraft-Version stellt die Seite den Umschalter auf Beta und sperrt Stable.
+      const noStable = history.length > 0 && history.every(({ r }) => r.prerelease);
       return (
-        <div class="dlx-body" data-mc={mc} hidden={i > 0}>
+        <div class="dlx-body" data-mc={mc} data-no-stable={noStable ? '' : undefined} hidden={i > 0}>
           {history.length === 0 ? (
             <p class="dlx-none">
               {t(lang, 'release.notFor')} {mc}

@@ -70,7 +70,13 @@ const betaOnlyProject = (i: number) => perProject[i].length > 0 && perProject[i]
             </select>
           </label>
           <div class="dlx-seg" role="radiogroup" aria-label={t(lang, 'downloads.channel')}>
-            <button type="button" role="radio" aria-checked="true" data-channel="stable">
+            <button
+              type="button"
+              role="radio"
+              aria-checked="true"
+              data-channel="stable"
+              data-no-stable={t(lang, 'downloads.onlyBeta')}
+            >
               {t(lang, 'downloads.stable')}
             </button>
             <button type="button" role="radio" aria-checked="false" data-channel="beta">
@@ -121,15 +127,34 @@ const betaOnlyProject = (i: number) => perProject[i].length > 0 && perProject[i]
         root.querySelector('.dlx-main')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     };
-    addEventListener('hashchange', () => show(location.hash.slice(1), true));
+    addEventListener('hashchange', () => {
+      show(location.hash.slice(1), true);
+      apply();
+    });
     show(location.hash.slice(1), false);
 
+    // chosen = Wahl des Besuchers (gemerkt). Hat das gezeigte Projekt für die gewählte Minecraft-Version keine
+    // Stable, gilt dort Beta und Stable ist gesperrt - die gemerkte Wahl bleibt für die anderen Projekte.
     const buttons = [...root.querySelectorAll<HTMLButtonElement>('[data-channel]')];
+    let chosen = 'stable';
+    const apply = () => {
+      const body = root.querySelector<HTMLElement>('[data-panel]:not([hidden]) .dlx-body:not([hidden])');
+      const forced = !!body && body.hasAttribute('data-no-stable');
+      const ch = forced ? 'beta' : chosen;
+      root.dataset.channel = ch;
+      buttons.forEach((b) => {
+        b.setAttribute('aria-checked', String(b.dataset.channel === ch));
+        if (b.dataset.channel === 'stable') {
+          b.disabled = forced;
+          b.title = forced ? b.dataset.noStable! : '';
+        }
+      });
+    };
     const setChannel = (ch: string, remember = true) => {
       if (ch !== 'stable' && ch !== 'beta') return;
-      root.dataset.channel = ch;
-      buttons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.channel === ch)));
+      chosen = ch;
       if (remember) store.set('mrt-dl-channel', ch);
+      apply();
     };
     buttons.forEach((b) => b.addEventListener('click', () => setChannel(b.dataset.channel!)));
     root.querySelectorAll<HTMLButtonElement>('[data-switch]').forEach((b) =>
@@ -141,6 +166,7 @@ const betaOnlyProject = (i: number) => perProject[i].length > 0 && perProject[i]
     const select = root.querySelector<HTMLSelectElement>('[data-dl-mc]');
     const setMc = (mc: string) => {
       root.querySelectorAll<HTMLElement>('[data-mc]').forEach((el) => (el.hidden = el.dataset.mc !== mc));
+      apply();
     };
     select?.addEventListener('change', () => {
       setMc(select.value);
