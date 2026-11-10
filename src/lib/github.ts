@@ -32,19 +32,26 @@ function fail(msg: string) {
   console.warn(`[github] ${msg}`);
 }
 
-export function getReleases(p: Project): Promise<Release[]> {
-  return cached(`rel:${p.repo}`, async () => {
-    const res = await fetch(`https://api.github.com/repos/${SITE.owner}/${p.repo}/releases?per_page=100`, {
+/** Die Releases eines Repos so, wie die GitHub-API sie liefert (einmal pro Build). */
+export function getRawReleases(repo: string): Promise<any[]> {
+  return cached(`raw:${repo}`, async () => {
+    const res = await fetch(`https://api.github.com/repos/${SITE.owner}/${repo}/releases?per_page=100`, {
       headers: {
         Accept: 'application/vnd.github+json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
     if (!res.ok) {
-      fail(`Releases von ${p.repo}: HTTP ${res.status}`);
+      fail(`Releases von ${repo}: HTTP ${res.status}`);
       return [];
     }
-    const list = (await res.json()) as any[];
+    return (await res.json()) as any[];
+  });
+}
+
+export function getReleases(p: Project): Promise<Release[]> {
+  return cached(`rel:${p.repo}`, async () => {
+    const list = await getRawReleases(p.repo);
     return list
       .filter((r) => !r.draft)
       .map((r): Release | null => {
