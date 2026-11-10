@@ -8,6 +8,9 @@
 #     --dir <folder>        default: ~/MINECRAFT/Server (must be empty or missing)
 #     --memory-min <size>   e.g. 2G      --memory-max <size>   e.g. 6G
 #     --web-url <address>   public address of the web interface, e.g. https://admin.example.com
+#     --proxy <where>       where your reverse proxy runs: here, docker, or the address of another machine
+#     --beta | --stable     update channel: beta = newest MRadmin beta now and beta updates later
+#     --dev                 dev builds (only with the release token; asked, or MR_DEV_TOKEN)
 #     --accept-eula         accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
 #     --yes                 take the suggested answers (needs --accept-eula)
 #     --no-start            only set up, no autostart and no start
@@ -24,9 +27,13 @@ MIN=""
 MAX=""
 EULA=""
 WEBURL=""
+PROXY=""
 YES=""
 RELEASE="${MR_RELEASE:-https://github.com/therealmarci/mradmin/releases/latest/download}"
 NOSTART=""
+CHANNEL=""
+DEVTOKEN="${MR_DEV_TOKEN:-}"
+[ -z "$DEVTOKEN" ] || CHANNEL=dev
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -34,8 +41,12 @@ while [ $# -gt 0 ]; do
         --memory-min) MIN=$2; shift 2 ;;
         --memory-max) MAX=$2; shift 2 ;;
         --web-url) WEBURL=$2; shift 2 ;;
+        --proxy) PROXY=$2; shift 2 ;;
         --accept-eula) EULA=1; shift ;;
         --no-start) NOSTART=1; shift ;;
+        --beta) CHANNEL=beta; shift ;;
+        --stable) CHANNEL=stable; shift ;;
+        --dev) CHANNEL=dev; shift ;;
         --yes|-y) YES=1; shift ;;
         *) echo "Unknown option: $1"; exit 2 ;;
     esac
@@ -154,6 +165,45 @@ fi
 if [ -n "$WEBURL" ] && ! echo "$WEBURL" | grep -Eq '^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$'; then
     fail "'$WEBURL' is not an address like https://admin.example.com"
 fi
+# Where the reverse proxy runs decides on which address MRadmin listens and whom it trusts for the visitor's IP.
+if [ -z "$PROXY" ] && [ -n "$WEBURL" ] && [ -n "$TTY" ]; then
+    echo "Where does your reverse proxy (e.g. Nginx Proxy Manager, Caddy) run?"
+    echo "  1) on this machine   2) in Docker on this machine   3) on another machine"
+    ask "Choice [1]:" "1"
+    case "$REPLY" in
+        2) PROXY=docker ;;
+        3) ask "Address of the proxy machine (e.g. 10.0.0.5, or a range like 10.0.0.0/24):" ""; PROXY=$REPLY ;;
+        *) PROXY=here ;;
+    esac
+fi
+case "$PROXY" in
+    ""|here) TARGET="http://127.0.0.1:8125" ;;
+    docker) TARGET="http://172.17.0.1:8125 (the gateway of the proxy's Docker network, e.g. 172.18.0.1)" ;;
+    *) echo "$PROXY" | grep -Eq '^[0-9a-fA-F:.]+(/[0-9]{1,3})?$' || fail "'$PROXY' is not an address or range"
+       TARGET="http://<address of this machine>:8125" ;;
+esac
+# ------------------------------------------------------------------ Update channel
+step "Updates"
+if [ -z "$CHANNEL" ]; then
+    echo "Stable versions are tested. Betas bring new features earlier, but may still have bugs."
+    if yes_no "Use beta versions (newest MRadmin beta now, beta updates later)? [y/N]" N; then CHANNEL=beta; else CHANNEL=stable; fi
+fi
+if [ "$CHANNEL" = dev ] && [ -z "$DEVTOKEN" ]; then
+    [ -n "$TTY" ] || fail "The dev channel needs the release token (MR_DEV_TOKEN)."
+    printf 'Release token for dev builds: ' >/dev/tty
+    stty -echo </dev/tty 2>/dev/null || true
+    read -r DEVTOKEN </dev/tty || DEVTOKEN=""
+    stty echo </dev/tty 2>/dev/null || true
+    printf '
+' >/dev/tty
+    [ -n "$DEVTOKEN" ] || fail "No release token given."
+fi
+case "$CHANNEL" in
+    beta) echo "Channel: beta (change it later in the web interface: Server -> Plugins)" ;;
+    dev) echo "Channel: dev builds for MRadmin, beta for the other plugins" ;;
+    *) echo "Channel: stable" ;;
+esac
+
 # ------------------------------------------------------------------ EULA
 step "Minecraft EULA"
 if [ -z "$EULA" ]; then
@@ -167,11 +217,12 @@ step "Downloading MRadmin and Paper"
 fetch "$RELEASE/mrserver.sh" "$DIR/mrserver.sh" || fail "Could not download mrserver.sh from the MRadmin release."
 chmod +x "$DIR/mrserver.sh"
 cd "$DIR"
-if [ -n "$WEBURL" ]; then
-    sh ./mrserver.sh setup --accept-eula --memory-min "$MIN" --memory-max "$MAX" --web-url "$WEBURL" </dev/null
-else
-    sh ./mrserver.sh setup --accept-eula --memory-min "$MIN" --memory-max "$MAX" --web </dev/null
-fi
+set -- --accept-eula --memory-min "$MIN" --memory-max "$MAX" --channel "$CHANNEL"
+if [ -n "$WEBURL" ]; then set -- "$@" --web-url "$WEBURL"; else set -- "$@" --web; fi
+[ -z "$PROXY" ] || set -- "$@" --proxy "$PROXY"
+# The token goes through the environment, not as an argument (arguments show in process lists).
+MRSERVER_DEV_TOKEN="$DEVTOKEN" sh ./mrserver.sh setup "$@" </dev/null \
+    || fail "Setup failed - see above. ($DIR may be half set up; delete it before trying again.)"
 
 MODE=$(sed -n 's/^mode=//p' mrserver.properties 2>/dev/null | tr -d '\r' | tail -n 1)
 
@@ -206,9 +257,9 @@ fi
 echo
 bold "Next steps"
 echo "  1. Join the server and make yourself operator:  $DIR/mrserver.sh console op <your name>"
-echo "  2. Web interface account (in game):             /mradmin web setup"
+echo "  2. Web interface (in game):                     /web - link and code to sign in"
 if [ -n "$WEBURL" ]; then
-    echo "     Your reverse proxy: $WEBURL -> http://127.0.0.1:8125"
+    echo "     Your reverse proxy: $WEBURL -> $TARGET"
 else
     echo "     No public address yet - from your PC:  ssh -L 8125:127.0.0.1:8125 $(id -un)@<server>"
     echo "     then open http://localhost:8125. Set web.public-url later in plugins/MRadmin/config.yml."
