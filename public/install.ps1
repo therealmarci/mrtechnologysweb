@@ -7,6 +7,7 @@
 #     $env:MR_DIR = 'D:\Minecraft'        default: %USERPROFILE%\MINECRAFT\Server (must be empty or missing)
 #     $env:MR_MEMORY_MIN = '2G'           $env:MR_MEMORY_MAX = '6G'
 #     $env:MR_WEB_URL = 'https://admin.example.com'
+#     $env:MR_PROXY = 'docker'            where the reverse proxy runs: here, docker or the address of another machine
 #     $env:MR_CHANNEL = 'beta'            update channel stable or beta (beta = newest MRadmin beta now)
 #     $env:MR_DEV_TOKEN = '...'           dev builds (release token; or MR_CHANNEL = 'dev' and type it in)
 #     $env:MR_ACCEPT_EULA = '1'           accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
@@ -111,6 +112,23 @@
     if ($webUrl -and $webUrl -notmatch '^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$') {
         Fail "'$webUrl' is not an address like https://admin.example.com"
     }
+    # Where the reverse proxy runs decides on which address MRadmin listens and whom it trusts for the visitor's IP.
+    $proxy = "$env:MR_PROXY".Trim()
+    if (-not $proxy -and $webUrl -and -not $yes) {
+        Write-Host 'Where does your reverse proxy (e.g. Nginx Proxy Manager, Caddy) run?'
+        Write-Host '  1) on this machine   2) in Docker on this machine   3) on another machine'
+        switch (Ask 'Choice' '1') {
+            '2' { $proxy = 'docker' }
+            '3' { $proxy = Ask 'Address of the proxy machine (e.g. 10.0.0.5, or a range like 10.0.0.0/24)' '' }
+            default { $proxy = 'here' }
+        }
+    }
+    $target = 'http://127.0.0.1:8125'
+    if ($proxy -eq 'docker') { $target = "http://host.docker.internal:8125 (Docker Desktop)" }
+    elseif ($proxy -and $proxy -ne 'here') {
+        if ($proxy -notmatch '^[0-9a-fA-F:.]+(/[0-9]{1,3})?$') { Fail "'$proxy' is not an address or range" }
+        $target = 'http://<address of this machine>:8125'
+    }
 
     # ------------------------------------------------------------------ Update channel
     Step 'Updates'
@@ -148,6 +166,7 @@
     Invoke-WebRequest "$release/mrserver.cmd" -OutFile $cmdFile -UseBasicParsing
     $setup = @('setup', '--accept-eula', '--memory-min', $min, '--memory-max', $max, '--channel', $channel)
     if ($webUrl) { $setup += @('--web-url', $webUrl) } else { $setup += '--web' }
+    if ($proxy) { $setup += @('--proxy', $proxy) }
     Push-Location $dir
     try {
         # The token goes through the environment, not as an argument (arguments show in process lists).
@@ -180,9 +199,9 @@
     Write-Host ''
     Write-Host 'Next steps' -ForegroundColor White
     Write-Host '  1. Join the server and make yourself operator:  mrserver console op <your name>'
-    Write-Host '  2. Web interface account (in game):             /mradmin web setup'
+    Write-Host '  2. Web interface (in game):                     /web - link and code to sign in'
     if ($webUrl) {
-        Write-Host "     Your reverse proxy: $webUrl -> http://127.0.0.1:8125"
+        Write-Host "     Your reverse proxy: $webUrl -> $target"
     } else {
         Write-Host '     On this PC: http://localhost:8125 - set web.public-url later in plugins\MRadmin\config.yml.'
     }
