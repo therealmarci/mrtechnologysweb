@@ -273,7 +273,8 @@ if [ "$ROLE" = waitroom ]; then
     [ -z "$MAINADDRESS" ] || set -- "$@" --main-address "$MAINADDRESS"
     [ -z "$LINKURL" ] || set -- "$@" --link-url "$LINKURL"
     # The key goes through the environment, not as an argument (arguments show in process lists).
-    MRSERVER_LINK_KEY="$LINKKEY" sh ./mrserver.sh setup "$@" </dev/null \
+    [ -z "$LINKKEY" ] || export MRSERVER_LINK_KEY="$LINKKEY"
+    sh ./mrserver.sh setup "$@" </dev/null \
         || fail "Setup failed - see above. ($DIR may be half set up; delete it before trying again.)"
 else
 set -- --accept-eula --memory-min "$MIN" --memory-max "$MAX" --channel "$CHANNEL"
