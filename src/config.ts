@@ -165,6 +165,19 @@ export const PROJECTS: Project[] = [
  * Fehlermelden (die Seiten bauen nur PROJECTS). Mit dem ersten Release nach PROJECTS verschieben.
  */
 export const COMING_SOON: Project[] = [
+  {
+    slug: 'mrwaitroom',
+    name: 'MRwaitroom',
+    repo: 'mrwaitroom',
+    icon: 'hourglass',
+    kind: PAPER,
+    tagline: {
+      de: 'Warteraum hinter Velocity: kein Rauswurf bei Neustart und Wartung - Restzeit in der Hotbar, danach automatisch zurück.',
+      en: 'Waiting room behind Velocity: no kicks on restarts and maintenance - time left in the hotbar, then back automatically.',
+    },
+    docs: [GUIDE, DEV],
+    variants: SINGLE,
+  },
 ];
 
 export const repoUrl = (p: Project) => `https://github.com/${SITE.owner}/${p.repo}`;
