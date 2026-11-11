@@ -11,6 +11,10 @@
 #     --proxy <where>       where your reverse proxy runs: here, docker, or the address of another machine
 #     --beta | --stable     update channel: beta = newest MRadmin beta now and beta updates later
 #     --dev                 dev builds (only with the release token; asked, or MR_DEV_TOKEN)
+#     --waitroom            set up a waiting room server behind Velocity (Paper + MRwaitroom) instead of a main server
+#       --main-server <name>  name of the main server in velocity.toml (default main)
+#       --main-address <host:port>  the main server in the internal network, e.g. 10.0.0.5:25565
+#       --link-url <address>  MRadmin's waiting-room.link, e.g. http://10.0.0.5:8126 (key: asked, or MR_LINK_KEY)
 #     --accept-eula         accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
 #     --yes                 take the suggested answers (needs --accept-eula)
 #     --no-start            only set up, no autostart and no start
@@ -33,11 +37,21 @@ RELEASE="${MR_RELEASE:-https://github.com/therealmarci/mradmin/releases/latest/d
 NOSTART=""
 CHANNEL=""
 DEVTOKEN="${MR_DEV_TOKEN:-}"
+ROLE=""
+MAINSERVER=""
+MAINADDRESS=""
+LINKURL=""
+LINKKEY="${MR_LINK_KEY:-}"
+DIRSET=""
 [ -z "$DEVTOKEN" ] || CHANNEL=dev
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --dir) DIR=$2; shift 2 ;;
+        --dir) DIR=$2; DIRSET=1; shift 2 ;;
+        --waitroom) ROLE=waitroom; shift ;;
+        --main-server) MAINSERVER=$2; shift 2 ;;
+        --main-address) MAINADDRESS=$2; shift 2 ;;
+        --link-url) LINKURL=$2; shift 2 ;;
         --memory-min) MIN=$2; shift 2 ;;
         --memory-max) MAX=$2; shift 2 ;;
         --web-url) WEBURL=$2; shift 2 ;;
@@ -110,6 +124,22 @@ if [ -z "$MAJOR" ] || [ "$MAJOR" -lt 25 ]; then
 fi
 echo "Java $MAJOR - ok"
 
+# ------------------------------------------------------------------ What to set up
+step "What to set up"
+if [ -z "$ROLE" ] && [ -z "$YES" ] && [ -n "$TTY" ]; then
+    echo "  1) a main server (Paper + MRadmin)"
+    echo "  2) a waiting room server behind a Velocity proxy (Paper + MRwaitroom) - players wait there during restarts"
+    ask "Choice [1]:" "1"
+    case "$REPLY" in 2) ROLE=waitroom ;; *) ROLE=main ;; esac
+fi
+[ -n "$ROLE" ] || ROLE=main
+if [ "$ROLE" = waitroom ]; then
+    echo "Waiting room server (MRwaitroom)"
+    [ -n "$DIRSET" ] || DIR="${HOME}/MINECRAFT/Waitroom"
+else
+    echo "Main server (MRadmin)"
+fi
+
 # ------------------------------------------------------------------ Folder
 step "Server folder"
 if [ -z "$YES" ] && [ -n "$TTY" ]; then
@@ -127,7 +157,9 @@ echo "$DIR"
 step "Memory"
 TOTAL_MB=$(awk '/^MemTotal:/ { printf "%d", $2 / 1024 }' /proc/meminfo 2>/dev/null || echo 0)
 SUGGEST=4
-if [ "$TOTAL_MB" -gt 0 ]; then
+if [ "$ROLE" = waitroom ]; then
+    SUGGEST=2
+elif [ "$TOTAL_MB" -gt 0 ]; then
     SUGGEST=$(( TOTAL_MB / 2048 ))          # half of the machine, in GB
     [ "$SUGGEST" -ge 2 ] || SUGGEST=2
     echo "This machine has $(( TOTAL_MB / 1024 )) GB memory."
@@ -154,6 +186,7 @@ fi
 echo "Memory: $MIN - $MAX (change it later in the web interface: Server -> Plugins -> MRadmin -> Configuration)"
 
 
+if [ "$ROLE" = main ]; then
 # ------------------------------------------------------------------ Web interface
 step "Web interface"
 echo "MRadmin's web interface is switched on. It listens only on this machine (http://127.0.0.1:8125);"
@@ -204,6 +237,23 @@ case "$CHANNEL" in
     *) echo "Channel: stable" ;;
 esac
 
+else
+# ------------------------------------------------------------------ Main server (waiting room)
+step "Connection to the main server"
+echo "The waiting room asks MRadmin on your main server what is going on (restart, maintenance) - set"
+echo "waiting-room.enabled and waiting-room.link.bind there first; MRadmin creates the key (waiting-room.link.key)."
+[ -n "$MAINSERVER" ] || { ask "Name of the main server in velocity.toml [main]:" "main"; MAINSERVER=$REPLY; }
+[ -n "$MAINADDRESS" ] || [ -z "$TTY" ] || { ask "Address of the main server in your network (e.g. 10.0.0.5:25565):" ""; MAINADDRESS=$REPLY; }
+[ -n "$LINKURL" ] || [ -z "$TTY" ] || { ask "MRadmin's waiting room connection (e.g. http://10.0.0.5:8126, empty = later):" ""; LINKURL=$REPLY; }
+if [ -n "$LINKURL" ] && [ -z "$LINKKEY" ] && [ -n "$TTY" ]; then
+    printf 'Key (waiting-room.link.key from MRadmin): ' >/dev/tty
+    stty -echo </dev/tty 2>/dev/null || true
+    read -r LINKKEY </dev/tty || LINKKEY=""
+    stty echo </dev/tty 2>/dev/null || true
+    printf '\n' >/dev/tty
+fi
+fi
+
 # ------------------------------------------------------------------ EULA
 step "Minecraft EULA"
 if [ -z "$EULA" ]; then
@@ -213,16 +263,26 @@ if [ -z "$EULA" ]; then
 fi
 
 # ------------------------------------------------------------------ MRadmin + Paper
-step "Downloading MRadmin and Paper"
+step "Downloading the starter and Paper"
 fetch "$RELEASE/mrserver.sh" "$DIR/mrserver.sh" || fail "Could not download mrserver.sh from the MRadmin release."
 chmod +x "$DIR/mrserver.sh"
 cd "$DIR"
+if [ "$ROLE" = waitroom ]; then
+    set -- --role waitroom --accept-eula --memory-min "$MIN" --memory-max "$MAX"
+    [ -z "$MAINSERVER" ] || set -- "$@" --main-server "$MAINSERVER"
+    [ -z "$MAINADDRESS" ] || set -- "$@" --main-address "$MAINADDRESS"
+    [ -z "$LINKURL" ] || set -- "$@" --link-url "$LINKURL"
+    # The key goes through the environment, not as an argument (arguments show in process lists).
+    MRSERVER_LINK_KEY="$LINKKEY" sh ./mrserver.sh setup "$@" </dev/null \
+        || fail "Setup failed - see above. ($DIR may be half set up; delete it before trying again.)"
+else
 set -- --accept-eula --memory-min "$MIN" --memory-max "$MAX" --channel "$CHANNEL"
 if [ -n "$WEBURL" ]; then set -- "$@" --web-url "$WEBURL"; else set -- "$@" --web; fi
 [ -z "$PROXY" ] || set -- "$@" --proxy "$PROXY"
 # The token goes through the environment, not as an argument (arguments show in process lists).
 MRSERVER_DEV_TOKEN="$DEVTOKEN" sh ./mrserver.sh setup "$@" </dev/null \
     || fail "Setup failed - see above. ($DIR may be half set up; delete it before trying again.)"
+fi
 
 MODE=$(sed -n 's/^mode=//p' mrserver.properties 2>/dev/null | tr -d '\r' | tail -n 1)
 
@@ -256,6 +316,14 @@ else
 fi
 echo
 bold "Next steps"
+if [ "$ROLE" = waitroom ]; then
+    echo "  1. Velocity: add this server under [servers] (e.g. waitroom = \"<this machine>:25565\"), try = [\"main\", \"waitroom\"],"
+    echo "     bungee-plugin-message-channel = true; here in config/paper-global.yml: proxies.velocity (same secret)"
+    echo "  2. Check the connection in the console:  $DIR/mrserver.sh console mrwaitroom status"
+    echo "  3. Afterwards everything is in MRadmin: Server -> Overview (tile Waiting room server) and Server -> Plugins"
+    echo "     Guide: https://mrtechnology.marcelr.at/wiki/mrwaitroom/einrichten/"
+    exit 0
+fi
 echo "  1. Join the server and make yourself operator:  $DIR/mrserver.sh console op <your name>"
 echo "  2. Web interface (in game):                     /web - link and code to sign in"
 if [ -n "$WEBURL" ]; then

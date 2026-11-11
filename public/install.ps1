@@ -10,6 +10,9 @@
 #     $env:MR_PROXY = 'docker'            where the reverse proxy runs: here, docker or the address of another machine
 #     $env:MR_CHANNEL = 'beta'            update channel stable or beta (beta = newest MRadmin beta now)
 #     $env:MR_DEV_TOKEN = '...'           dev builds (release token; or MR_CHANNEL = 'dev' and type it in)
+#     $env:MR_ROLE = 'waitroom'           waiting room server behind Velocity (Paper + MRwaitroom) instead of a main server
+#       $env:MR_MAIN_SERVER = 'main'  $env:MR_MAIN_ADDRESS = '10.0.0.5:25565'
+#       $env:MR_LINK_URL = 'http://10.0.0.5:8126'  $env:MR_LINK_KEY = '...'   (MRadmin: waiting-room.link)
 #     $env:MR_ACCEPT_EULA = '1'           accept the Minecraft EULA (https://aka.ms/MinecraftEULA)
 #     $env:MR_YES = '1'                   take the suggested answers (needs MR_ACCEPT_EULA)
 #     $env:MR_START = '0'                 only set up, no autostart and no start
@@ -69,10 +72,21 @@
     }
     Write-Host "Java $major - ok"
 
+    # ------------------------------------------------------------------ What to set up
+    Step 'What to set up'
+    $role = "$env:MR_ROLE".Trim().ToLower()
+    if (-not $role -and -not $yes) {
+        Write-Host '  1) a main server (Paper + MRadmin)'
+        Write-Host '  2) a waiting room server behind a Velocity proxy (Paper + MRwaitroom) - players wait there during restarts'
+        if ((Ask 'Choice [1]' '1') -eq '2') { $role = 'waitroom' }
+    }
+    if ($role -ne 'waitroom') { $role = 'main' }
+    if ($role -eq 'waitroom') { Write-Host 'Waiting room server (MRwaitroom)' } else { Write-Host 'Main server (MRadmin)' }
+
     # ------------------------------------------------------------------ Folder
     Step 'Server folder'
     $dir = $env:MR_DIR
-    if (-not $dir) { $dir = Join-Path $env:USERPROFILE 'MINECRAFT\Server' }
+    if (-not $dir) { $dir = Join-Path $env:USERPROFILE $(if ($role -eq 'waitroom') { 'MINECRAFT\Waitroom' } else { 'MINECRAFT\Server' }) }
     if (-not $env:MR_DIR) { $dir = Ask "Install into [$dir]" $dir }
     if ((Test-Path $dir) -and (Get-ChildItem -Force $dir | Select-Object -First 1)) {
         Fail "$dir is not empty. Choose an empty folder (MR_DIR) - an existing server is never overwritten. To add the starter to an existing server: /mradmin starter setup"
@@ -84,6 +98,7 @@
     Step 'Memory'
     $totalMb = [long]((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1MB)
     $suggest = [Math]::Max(2, [int]($totalMb / 2048))
+    if ($role -eq 'waitroom') { $suggest = 2 }
     Write-Host ("This machine has {0} GB memory." -f [int]($totalMb / 1024))
     $max = $env:MR_MEMORY_MAX
     while ($true) {
@@ -104,6 +119,21 @@
     if ((Megabytes $max) -ge $totalMb) { Write-Host "Note: $max is as much as the whole machine has - leave some memory for the system." }
     Write-Host "Memory: $min - $max (change it later in the web interface: Server -> Plugins -> MRadmin -> Configuration)"
 
+    $webUrl = $null; $proxy = $null; $channel = 'stable'; $devToken = $null; $target = ''
+    $mainServer = $env:MR_MAIN_SERVER; $mainAddress = $env:MR_MAIN_ADDRESS; $linkUrl = $env:MR_LINK_URL; $linkKey = $env:MR_LINK_KEY
+    if ($role -eq 'waitroom') {
+        # ------------------------------------------------------------------ Main server (waiting room)
+        Step 'Connection to the main server'
+        Write-Host 'The waiting room asks MRadmin on your main server what is going on (restart, maintenance) - set'
+        Write-Host 'waiting-room.enabled and waiting-room.link.bind there first; MRadmin creates the key (waiting-room.link.key).'
+        if (-not $mainServer) { $mainServer = Ask 'Name of the main server in velocity.toml [main]' 'main' }
+        if (-not $mainAddress -and -not $yes) { $mainAddress = Ask 'Address of the main server in your network (e.g. 10.0.0.5:25565)' '' }
+        if (-not $linkUrl -and -not $yes) { $linkUrl = Ask "MRadmin's waiting room connection (e.g. http://10.0.0.5:8126, empty = later)" '' }
+        if ($linkUrl -and -not $linkKey -and -not $yes) {
+            $secure = Read-Host 'Key (waiting-room.link.key from MRadmin)' -AsSecureString
+            $linkKey = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+        }
+    } else {
     # ------------------------------------------------------------------ Web interface
     Step 'Web interface'
     Write-Host "MRadmin's web interface is switched on. It listens only on this machine: http://127.0.0.1:8125"
@@ -151,6 +181,7 @@
         'dev' { Write-Host 'Channel: dev builds for MRadmin, beta for the other plugins' }
         default { Write-Host 'Channel: stable' }
     }
+    }
 
     # ------------------------------------------------------------------ EULA
     Step 'Minecraft EULA'
@@ -164,14 +195,25 @@
     Step 'Downloading MRadmin and Paper'
     $cmdFile = Join-Path $dir 'mrserver.cmd'
     Invoke-WebRequest "$release/mrserver.cmd" -OutFile $cmdFile -UseBasicParsing
-    $setup = @('setup', '--accept-eula', '--memory-min', $min, '--memory-max', $max, '--channel', $channel)
-    if ($webUrl) { $setup += @('--web-url', $webUrl) } else { $setup += '--web' }
-    if ($proxy) { $setup += @('--proxy', $proxy) }
+    if ($role -eq 'waitroom') {
+        $setup = @('setup', '--role', 'waitroom', '--accept-eula', '--memory-min', $min, '--memory-max', $max)
+        if ($mainServer) { $setup += @('--main-server', $mainServer) }
+        if ($mainAddress) { $setup += @('--main-address', $mainAddress) }
+        if ($linkUrl) { $setup += @('--link-url', $linkUrl) }
+    } else {
+        $setup = @('setup', '--accept-eula', '--memory-min', $min, '--memory-max', $max, '--channel', $channel)
+        if ($webUrl) { $setup += @('--web-url', $webUrl) } else { $setup += '--web' }
+        if ($proxy) { $setup += @('--proxy', $proxy) }
+    }
     Push-Location $dir
     try {
-        # The token goes through the environment, not as an argument (arguments show in process lists).
+        # Token and key go through the environment, not as arguments (arguments show in process lists).
         $env:MRSERVER_DEV_TOKEN = $devToken
-        try { & $cmdFile @setup } finally { Remove-Item Env:MRSERVER_DEV_TOKEN -ErrorAction SilentlyContinue }
+        $env:MRSERVER_LINK_KEY = $linkKey
+        try { & $cmdFile @setup } finally {
+            Remove-Item Env:MRSERVER_DEV_TOKEN -ErrorAction SilentlyContinue
+            Remove-Item Env:MRSERVER_LINK_KEY -ErrorAction SilentlyContinue
+        }
         if ($LASTEXITCODE -ne 0) { Fail "Setup failed (exit code $LASTEXITCODE)." }
 
         # ------------------------------------------------------------------ Autostart + start
@@ -198,6 +240,14 @@
     }
     Write-Host ''
     Write-Host 'Next steps' -ForegroundColor White
+    if ($role -eq 'waitroom') {
+        Write-Host '  1. Velocity: add this server under [servers] (e.g. waitroom = "<this machine>:25565"), try = ["main", "waitroom"],'
+        Write-Host '     bungee-plugin-message-channel = true; here in config\paper-global.yml: proxies.velocity (same secret)'
+        Write-Host '  2. Check the connection in the console:  mrserver console mrwaitroom status'
+        Write-Host '  3. Afterwards everything is in MRadmin: Server -> Overview (tile Waiting room server) and Server -> Plugins'
+        Write-Host '     Guide: https://mrtechnology.marcelr.at/wiki/mrwaitroom/einrichten/'
+        return
+    }
     Write-Host '  1. Join the server and make yourself operator:  mrserver console op <your name>'
     Write-Host '  2. Web interface (in game):                     /web - link and code to sign in'
     if ($webUrl) {
