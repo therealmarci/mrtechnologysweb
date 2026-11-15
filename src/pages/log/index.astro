@@ -1,0 +1,437 @@
+---
+// Viewer for ticket logs that MRadmin servers seal for MRtechnology (tickets forwarded as GitHub issues).
+// Everything happens in this browser: the private key is loaded once (protected by its passphrase) and kept as a
+// non-extractable key in IndexedDB; sealed logs come as a file or via #src=<address> from the server that wrote them.
+import Base from '../../layouts/Base.astro';
+---
+
+<Base lang="de" title="Ticket-Log" description="Verschlüsselte Ticket-Logs von MRadmin öffnen." path="log" noindex>
+  <section class="wrap tl">
+    <h1>Ticket-Log</h1>
+    <p class="lead">Öffnet Logs, die MRadmin-Server beim Weiterleiten eines Tickets für MRtechnology verschlüsseln. Alles bleibt in diesem Browser - nichts wird hochgeladen.</p>
+
+    <div class="panel key" id="key-panel">
+      <div id="key-none">
+        <h2>Schlüssel laden</h2>
+        <p class="muted">Einmal pro Browser: die Schlüsseldatei von MRtechnology und ihr Passwort. Danach bleibt der Schlüssel hier gespeichert (nicht auslesbar).</p>
+        <div class="row">
+          <input type="file" id="key-file" accept=".json,application/json" />
+          <input type="password" id="key-pass" placeholder="Passwort" autocomplete="off" />
+          <button id="key-load" class="btn">Laden</button>
+        </div>
+      </div>
+      <div id="key-ok" hidden>
+        <span>Schlüssel <b id="key-ids"></b> geladen.</span>
+        <button id="key-forget" class="btn small">Schlüssel entfernen</button>
+      </div>
+      <p class="err" id="key-err" hidden></p>
+    </div>
+
+    <div class="panel drop" id="drop">
+      <p><b>Log-Datei hierher ziehen</b> oder <label class="link">auswählen<input type="file" id="log-file" accept=".json,application/json" hidden /></label></p>
+      <p class="muted small" id="src-note" hidden></p>
+      <p class="err" id="log-err" hidden></p>
+    </div>
+
+    <div id="out"></div>
+  </section>
+</Base>
+
+<style is:global>
+  .tl { display: grid; gap: 16px; padding-block: 28px 60px; }
+  .tl h1 { margin: 0; }
+  .tl h2 { margin: 0 0 6px; font-size: 1.1rem; }
+  .tl h3 { margin: 0 0 8px; font-size: 0.95rem; }
+  .tl h4 { margin: 10px 0 4px; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+  .tl p { margin: 0; }
+  .tl .lead { color: var(--muted); max-width: 70ch; }
+  .tl .muted { color: var(--muted); }
+  .tl .small { font-size: 0.82rem; }
+  .tl .panel { background: var(--panel); border: 2px solid var(--edge); padding: 14px 16px; display: grid; gap: 10px; }
+  .tl .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tl input[type='password'], .tl input[type='search'] { font: inherit; padding: 7px 10px; background: var(--code-bg); color: var(--text); border: 1px solid var(--line); min-width: 0; }
+  .tl .btn { font: inherit; cursor: pointer; padding: 7px 14px; background: var(--grass); color: var(--grass-ink); border: 2px solid var(--edge); font-weight: 700; }
+  .tl .btn.small { padding: 4px 10px; font-size: 0.82rem; }
+  .tl .err { color: var(--redstone); }
+  .tl #key-ok { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .tl .drop { border-style: dashed; text-align: center; padding: 26px 16px; }
+  .tl .drop.over { border-color: var(--grass); background: var(--grass-soft); }
+  .tl .link { color: var(--diamond); cursor: pointer; text-decoration: underline; }
+  .tl .head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .tl .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tl .pill { font-size: 0.78rem; font-weight: 700; padding: 3px 9px; background: var(--code-bg); border: 1px solid var(--line); }
+  .tl .pill.bad, .tl .bad { color: var(--redstone); }
+  .tl .pill.warn, .tl .warn { color: var(--gold); }
+  .tl .peaks { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .tl .peaks > div { background: var(--code-bg); padding: 8px 10px; display: grid; gap: 2px; }
+  .tl .peaks span { font-size: 0.74rem; color: var(--muted); }
+  .tl .peaks b { font-size: 1.1rem; font-family: var(--pixel); }
+  .tl .tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tl .tabs button { font: inherit; font-size: 0.82rem; cursor: pointer; padding: 5px 11px; background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .tl .tabs button.on { color: var(--text); border-color: var(--grass); background: var(--grass-soft); }
+  .tl .chart { position: relative; }
+  .tl .chart svg { display: block; width: 100%; height: 220px; }
+  .tl .chart .tip { position: absolute; top: 4px; right: 8px; font-size: 0.78rem; background: var(--code-bg); border: 1px solid var(--line); padding: 4px 8px; pointer-events: none; }
+  .tl .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.78rem; color: var(--muted); }
+  .tl .legend i { display: inline-block; width: 10px; height: 3px; margin-right: 5px; vertical-align: middle; }
+  .tl .strip { position: relative; display: flex; align-items: flex-end; gap: 1px; height: 46px; padding: 4px; background: var(--code-bg); }
+  .tl .strip button { flex: 1; min-width: 0; padding: 0; border: 0; cursor: pointer; background: var(--stone); opacity: 0.6; }
+  .tl .strip button.evt { background: var(--diamond); opacity: 1; }
+  .tl .strip button.wrn { background: var(--gold); opacity: 1; }
+  .tl .strip button.err { background: var(--redstone); opacity: 1; }
+  .tl .strip button.sel { outline: 2px solid var(--text); }
+  .tl .strip .mark { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); pointer-events: none; }
+  .tl .axis { display: flex; justify-content: space-between; font-size: 0.74rem; color: var(--muted); }
+  .tl .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 10px; }
+  .tl .tile { background: var(--code-bg); padding: 12px; min-width: 0; }
+  .tl dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 0.84rem; }
+  .tl dt { color: var(--muted); }
+  .tl dd { margin: 0; overflow-wrap: anywhere; }
+  .tl .crow { display: flex; justify-content: space-between; gap: 10px; font-size: 0.82rem; padding: 2px 0; border-bottom: 1px solid var(--line); }
+  .tl .crow span { min-width: 0; overflow-wrap: anywhere; }
+  .tl .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0 14px; }
+  .tl details summary { cursor: pointer; font-weight: 600; }
+  .tl .plist { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tl .plist span { font-size: 0.8rem; padding: 3px 8px; background: var(--code-bg); }
+  .tl .plist span.off { color: var(--redstone); text-decoration: line-through; }
+  .tl .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .tl .filters input { flex: 1 1 200px; }
+  .tl .lines { max-height: 640px; overflow: auto; padding: 8px 10px; background: var(--code-bg); font-family: var(--mono); font-size: 0.78rem; line-height: 1.45; }
+  .tl .line { display: flex; gap: 8px; }
+  .tl .line .t { flex: none; color: var(--faint); }
+  .tl .line .s { flex: none; font-weight: 700; }
+  .tl .line .x { min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .tl .line.warn .x { color: var(--gold); }
+  .tl .line.error .x { color: var(--redstone); }
+  .tl .more { display: block; margin: 0 auto 8px; }
+  .tl .chat { display: grid; gap: 8px; }
+  .tl .msg { background: var(--code-bg); padding: 8px 10px; font-size: 0.86rem; white-space: pre-wrap; }
+</style>
+
+<script>
+  const DB = 'mrtechnology-log';
+  const b64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const $ = (id: string) => document.getElementById(id)!;
+
+  // ------------------------------------------------------------------ key store (IndexedDB, CryptoKey objects)
+  function db(): Promise<IDBDatabase> {
+    return new Promise((ok, fail) => {
+      const r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('keys');
+      r.onsuccess = () => ok(r.result);
+      r.onerror = () => fail(r.error);
+    });
+  }
+  async function keys(): Promise<Record<string, CryptoKey>> {
+    const d = await db();
+    return new Promise((ok) => {
+      const out: Record<string, CryptoKey> = {};
+      const c = d.transaction('keys').objectStore('keys').openCursor();
+      c.onsuccess = () => {
+        const cur = c.result;
+        if (cur) { out[cur.key as string] = cur.value; cur.continue(); } else ok(out);
+      };
+      c.onerror = () => ok(out);
+    });
+  }
+  async function put(kid: string, key: CryptoKey | null) {
+    const d = await db();
+    await new Promise((ok) => {
+      const tx = d.transaction('keys', 'readwrite');
+      if (key) tx.objectStore('keys').put(key, kid); else tx.objectStore('keys').clear();
+      tx.oncomplete = ok;
+    });
+  }
+
+  async function showKeys() {
+    const k = Object.keys(await keys());
+    $('key-none').hidden = k.length > 0;
+    $('key-ok').hidden = k.length === 0;
+    $('key-ids').textContent = k.join(', ');
+  }
+
+  function fail(id: string, text: string) {
+    const el = $(id);
+    el.textContent = text;
+    el.hidden = !text;
+  }
+
+  $('key-load').addEventListener('click', async () => {
+    fail('key-err', '');
+    try {
+      const file = ($('key-file') as HTMLInputElement).files?.[0];
+      if (!file) throw new Error('Bitte die Schlüsseldatei auswählen.');
+      const k = JSON.parse(await file.text());
+      if (k.format !== 'mrtechnology-log-key') throw new Error('Das ist keine Schlüsseldatei von MRtechnology.');
+      const pass = ($('key-pass') as HTMLInputElement).value;
+      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+      const aes = await crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: b64(k.salt), iterations: k.iterations },
+        base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+      let pkcs8: ArrayBuffer;
+      try {
+        pkcs8 = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(k.iv) }, aes, b64(k.data));
+      } catch {
+        throw new Error('Falsches Passwort.');
+      }
+      const key = await crypto.subtle.importKey('pkcs8', pkcs8, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['decrypt']);
+      await put(k.kid, key);
+      ($('key-pass') as HTMLInputElement).value = '';
+      await showKeys();
+      if (pending) open(pending);
+    } catch (e) {
+      fail('key-err', (e as Error).message);
+    }
+  });
+  $('key-forget').addEventListener('click', async () => {
+    if (!confirm('Schlüssel aus diesem Browser entfernen?')) return;
+    await put('', null);
+    await showKeys();
+  });
+
+  // ------------------------------------------------------------------ opening a sealed log
+  let pending: any = null;
+
+  async function open(sealed: any) {
+    fail('log-err', '');
+    try {
+      if (sealed.format !== 'mrtechnology-ticket-log-sealed') throw new Error('Das ist keine verschlüsselte Log-Datei von MRadmin.');
+      const key = (await keys())[sealed.kid];
+      if (!key) {
+        pending = sealed;
+        throw new Error(`Für diese Datei fehlt der Schlüssel ${sealed.kid} - bitte oben laden.`);
+      }
+      const raw = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, key, b64(sealed.key));
+      const aes = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+      const gz = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(sealed.iv) }, aes, b64(sealed.data));
+      const text = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+      pending = null;
+      render(JSON.parse(text));
+    } catch (e) {
+      fail('log-err', (e as Error).message || 'Die Datei lässt sich nicht öffnen (falscher Schlüssel oder beschädigt).');
+    }
+  }
+
+  async function fromFile(file?: File) {
+    if (!file) return;
+    try {
+      await open(JSON.parse(await file.text()));
+    } catch {
+      fail('log-err', 'Die Datei ist kein gültiges JSON.');
+    }
+  }
+  $('log-file').addEventListener('change', (e) => fromFile((e.target as HTMLInputElement).files?.[0]));
+  const drop = $('drop');
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('over');
+    fromFile(e.dataTransfer?.files?.[0]);
+  });
+
+  async function fromHash() {
+    const src = new URLSearchParams(location.hash.slice(1)).get('src');
+    if (!src) return;
+    const note = $('src-note');
+    note.hidden = false;
+    try {
+      const url = new URL(src);
+      if (!/^https?:$/.test(url.protocol) || !url.pathname.includes('/api/public/ticket-log/')) throw new Error();
+      note.textContent = 'Lade ' + url.host + ' ...';
+      const res = await fetch(url.href, { credentials: 'omit' });
+      if (!res.ok) throw new Error();
+      note.textContent = 'Geladen von ' + url.host;
+      await open(await res.json());
+    } catch {
+      note.textContent = '';
+      fail('log-err', 'Das Log ließ sich vom Server nicht laden (offline, Ticket gelöscht oder Adresse falsch). Nimm die Datei aus dem Issue.');
+    }
+  }
+
+  // ------------------------------------------------------------------ rendering
+  const esc = (s: any) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const clock = (ms: number) => new Date(ms).toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const num = (v: number) => (v == null ? '-' : Math.round(v).toLocaleString('de-AT'));
+  const mb = (v: number) => (v == null ? '-' : v >= 1024 ? (v / 1024).toFixed(1) + ' GB' : Math.round(v) + ' MB');
+  const dur = (ms: number) => { const m = Math.floor(ms / 60000); return m >= 1440 ? `${Math.floor(m / 1440)} d ${Math.floor((m % 1440) / 60)} h` : m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`; };
+  const COLORS = ['var(--grass)', 'var(--diamond)', 'var(--gold)'];
+
+  const METRICS: { id: string; label: string; max?: number; fmt: (v: number) => string; series: [string, string][]; ref?: number }[] = [
+    { id: 'tps', label: 'TPS', max: 20, fmt: (v) => v.toFixed(1), series: [['tps', 'TPS']] },
+    { id: 'mspt', label: 'Tick-Zeit', fmt: (v) => v.toFixed(1) + ' ms', ref: 50, series: [['mspt', 'Mittel'], ['msptP95', '95 %'], ['msptMax', 'Max']] },
+    { id: 'cpu', label: 'CPU', max: 100, fmt: (v) => Math.round(v) + ' %', series: [['cpu', 'Server'], ['cpuSystem', 'System']] },
+    { id: 'ram', label: 'RAM', fmt: mb, series: [['heapUsed', 'Belegt']] },
+    { id: 'world', label: 'Welt', fmt: num, series: [['entities', 'Entities'], ['tiles', 'Block-Entities'], ['chunks', 'Chunks']] },
+    { id: 'players', label: 'Spieler', fmt: num, series: [['players', 'Spieler'], ['ping', 'Ping']] },
+  ];
+
+  function chart(el: HTMLElement, points: any[], m: (typeof METRICS)[number], from: number, to: number) {
+    const W = 1000, H = 220, L = 46, R = 8, T = 10, B = 22;
+    let max = m.max ?? 0;
+    for (const p of points) for (const [k] of m.series) max = Math.max(max, p[k] ?? 0);
+    max = max || 1;
+    const x = (t: number) => L + ((t - from) / Math.max(1, to - from)) * (W - L - R);
+    const y = (v: number) => T + (1 - v / max) * (H - T - B);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+    for (let i = 0; i <= 4; i++) {
+      const v = (max / 4) * i;
+      svg += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>`
+        + `<text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--faint)">${esc(m.fmt(v))}</text>`;
+    }
+    if (m.ref && m.ref < max) svg += `<line x1="${L}" x2="${W - R}" y1="${y(m.ref)}" y2="${y(m.ref)}" stroke="var(--redstone)" stroke-dasharray="6 4"/>`;
+    for (let i = 0; i <= 5; i++) {
+      const t = from + ((to - from) / 5) * i;
+      svg += `<text x="${x(t)}" y="${H - 6}" text-anchor="middle" font-size="11" fill="var(--faint)">${clock(t).slice(0, 5)}</text>`;
+    }
+    m.series.forEach(([k], i) => {
+      const d = points.map((p, j) => `${j ? 'L' : 'M'}${x(p.time).toFixed(1)},${y(p[k] ?? 0).toFixed(1)}`).join('');
+      svg += `<path d="${d}" fill="none" stroke="${COLORS[i]}" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+    });
+    svg += `<line id="cross" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--muted)" visibility="hidden"/></svg>`;
+    el.innerHTML = `<div class="chart">${svg}<div class="tip" hidden></div></div><div class="legend">${m.series
+      .map(([, l], i) => `<span><i style="background:${COLORS[i]}"></i>${esc(l)}</span>`).join('')}</div>`;
+    const s = el.querySelector('svg')!, tip = el.querySelector('.tip') as HTMLElement, cross = el.querySelector('#cross')!;
+    s.addEventListener('mousemove', (e) => {
+      const r = s.getBoundingClientRect();
+      const t = from + (((e.clientX - r.left) / r.width) * W - L) / (W - L - R) * (to - from);
+      let best = points[0];
+      for (const p of points) if (Math.abs(p.time - t) < Math.abs(best.time - t)) best = p;
+      if (!best) return;
+      cross.setAttribute('x1', String(x(best.time)));
+      cross.setAttribute('x2', String(x(best.time)));
+      cross.setAttribute('visibility', 'visible');
+      tip.hidden = false;
+      tip.innerHTML = `${clock(best.time)} · ` + m.series.map(([k, l]) => `${esc(l)} <b>${esc(m.fmt(best[k] ?? 0))}</b>`).join(' · ');
+    });
+    s.addEventListener('mouseleave', () => { tip.hidden = true; cross.setAttribute('visibility', 'hidden'); });
+  }
+
+  function render(log: any) {
+    const out = $('out');
+    const tk = log.ticket ?? {}, sv = log.server ?? {};
+    const f = log.health?.fields ?? [];
+    const points = (log.health?.rows ?? []).map((r: any[]) => Object.fromEntries(f.map((k: string, i: number) => [k, r[i]])));
+    const entries: any[] = [];
+    for (const [time, level, text] of log.console?.lines ?? []) entries.push({ time, kind: 'console', level, text });
+    for (const e of log.events ?? []) entries.push({ time: e.time, kind: 'event', level: 'event', text: e.text, source: e.source, color: e.color });
+    entries.sort((a, b) => a.time - b.time);
+    const count = (l: string) => entries.filter((e) => e.level === l).length;
+    const span = Math.max(1, log.time - log.from);
+
+    let peaks = '';
+    if (points.length) {
+      const minTps = Math.min(...points.map((p: any) => p.tps)), maxMspt = Math.max(...points.map((p: any) => p.msptMax));
+      peaks = `<div class="peaks">
+        <div><span>Niedrigste TPS</span><b class="${minTps < 15 ? 'bad' : minTps < 19 ? 'warn' : ''}">${minTps.toFixed(1)}</b></div>
+        <div><span>Längster Tick</span><b class="${maxMspt > 100 ? 'bad' : maxMspt > 50 ? 'warn' : ''}">${maxMspt.toFixed(0)} ms</b></div>
+        <div><span>Höchster RAM</span><b>${mb(Math.max(...points.map((p: any) => p.heapUsed)))}</b></div>
+        <div><span>Meiste Entities</span><b>${num(Math.max(...points.map((p: any) => p.entities)))}</b></div></div>`;
+    }
+
+    const person = (who: string, p: any) => p ? `<div class="tile"><h3>${who}: ${esc(p.name)}</h3><dl>
+      <dt>Position</dt><dd>${esc(p.world)} · ${Math.round(p.x)} ${Math.round(p.y)} ${Math.round(p.z)} (Chunk ${esc(p.chunk?.join(' '))})</dd>
+      <dt>Biom</dt><dd>${esc(p.biome)} · Licht ${esc(p.light)}</dd>
+      <dt>Spielmodus</dt><dd>${esc(p.gameMode)}${p.flying ? ' · fliegt' : ''}${p.vehicle ? ' · ' + esc(p.vehicle) : ''}${p.op ? ' · OP' : ''}</dd>
+      <dt>Zustand</dt><dd>❤ ${esc(p.health)}/${esc(p.maxHealth)} · Hunger ${esc(p.food)} · Level ${esc(p.level)}</dd>
+      <dt>Client</dt><dd>${esc(p.client ?? '-')} · Protokoll ${esc(p.protocol)} · ${esc(p.locale)} · Sichtweite ${esc(p.viewDistance)}</dd>
+      <dt>Ping</dt><dd>${esc(p.ping)} ms</dd><dt>In der Hand</dt><dd>${esc(p.hand ?? '-')}</dd>
+      ${p.effects?.length ? `<dt>Effekte</dt><dd>${esc(p.effects.join(', '))}</dd>` : ''}
+      ${p.players?.length ? `<dt>In der Nähe</dt><dd>${esc(p.players.map((o: any) => `${o.name} (${Math.round(o.distance)} m)`).join(', '))}</dd>` : ''}</dl>
+      <div class="two"><div><h4>Entities</h4>${(p.entities ?? []).slice(0, 10).map(([k, n]: any) => `<div class="crow"><span>${esc(k)}</span><b>${n}</b></div>`).join('') || '-'}</div>
+      <div><h4>Block-Entities (${esc(p.tileArea)})</h4>${(p.tiles ?? []).slice(0, 10).map(([k, n]: any) => `<div class="crow"><span>${esc(k)}</span><b>${n}</b></div>`).join('') || '-'}</div></div></div>` : '';
+
+    out.innerHTML = `
+      <div class="panel">
+        <div class="head"><div><h2>${esc(tk.server)} · Ticket #${esc(tk.id)} · ${esc(tk.categoryName)}</h2>
+          <p>${esc(tk.summary)}</p>
+          <p class="muted small">von ${esc(tk.creator)} · ${clock(log.from)} bis ${clock(log.time)}, ${new Date(log.time).toLocaleDateString('de-AT')} (${Math.round(span / 60000)} Minuten vor dem Erstellen)</p></div>
+          <div class="pills">${count('error') ? `<span class="pill bad">${count('error')} Fehler</span>` : ''}${count('warn') ? `<span class="pill warn">${count('warn')} Warnungen</span>` : ''}<span class="pill">${count('event')} Ereignisse</span></div></div>
+        ${peaks}
+        <div class="tabs" id="metrics">${METRICS.map((m) => `<button data-m="${m.id}">${m.label}</button>`).join('')}</div>
+        <div id="chart">${points.length ? '' : '<p class="muted">Keine Leistungswerte aus diesem Zeitraum.</p>'}</div>
+        <div><div class="strip" id="strip"></div><div class="axis"><span>${clock(log.from)}</span><span>Ticket erstellt ${clock(log.time)}</span></div></div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><h3>Server</h3><dl>
+          <dt>Software</dt><dd>${esc(sv.software)}</dd><dt>Minecraft</dt><dd>${esc(sv.minecraft)}</dd><dt>MRadmin</dt><dd>${esc(sv.mradmin)}</dd>
+          <dt>Java</dt><dd>${esc(sv.java)}</dd><dt>System</dt><dd>${esc(sv.os)} · ${esc(sv.cores)} Kerne · ${mb(sv.memoryMax)}</dd>
+          <dt>JVM</dt><dd>${esc((sv.jvmFlags ?? []).join(' ')) || '-'}</dd><dt>Läuft seit</dt><dd>${dur(sv.uptime ?? 0)}</dd>
+          <dt>TPS</dt><dd>${esc((sv.tps ?? []).join(' / '))} · ${esc(sv.mspt)} ms</dd><dt>Spieler</dt><dd>${esc(sv.online)} / ${esc(sv.maxPlayers)}${sv.onlineMode ? '' : ' (offline-mode)'}</dd>
+          <dt>Sicht/Simulation</dt><dd>${esc(sv.viewDistance)} / ${esc(sv.simulationDistance)}</dd><dt>Speicher</dt><dd>${esc(sv.storage)}</dd></dl></div>
+        ${person('Ersteller', log.player)}${person('Gemeldet', log.target)}
+        <div class="tile"><h3>Welten</h3>${(sv.worlds ?? []).map((w: any) => `<div class="crow"><span>${esc(w.name)} <small class="muted">${esc(w.environment)} · ${esc(w.weather)}</small></span><b>${num(w.players)} Sp. · ${num(w.chunks)} Ch. · ${num(w.entities)} E · ${num(w.tiles)} T</b></div>`).join('')}
+          ${log.hotChunks?.length ? `<h4>Chunks mit den meisten Entities</h4>${log.hotChunks.map((c: any) => `<div class="crow"><span>${esc(c.world)} ${c.x} ${c.z} <small class="muted">${esc(c.types.slice(0, 3).map(([k, n]: any) => k + ' ' + n).join(', '))}</small></span><b>${c.count}</b></div>`).join('')}` : ''}</div>
+      </div>
+      <details class="panel"><summary>Plugins (${(sv.plugins ?? []).length})</summary><div class="plist">${(sv.plugins ?? []).map((p: any) => `<span class="${p.enabled ? '' : 'off'}">${esc(p.name)} <small class="muted">${esc(p.version)}</small></span>`).join('')}</div></details>
+      <div class="panel">
+        <div class="filters">
+          <div class="tabs" id="src"><button data-s="all">Alles</button><button data-s="console">Server-Log</button><button data-s="event">Ereignisse</button></div>
+          <div class="tabs" id="lvl"><button data-l="info">Info</button><button data-l="warn">Warnungen</button><button data-l="error">Fehler</button></div>
+          <input type="search" id="q" placeholder="Im Log suchen ..." />
+          <button class="btn small" id="unfocus" hidden></button>
+        </div>
+        <div class="lines" id="lines"></div>
+        ${log.console?.cut ? '<p class="muted small">Das Server-Log war länger - nur die neuesten Zeilen wurden gespeichert.</p>' : ''}
+      </div>`;
+
+    // charts
+    const pick = (id: string) => {
+      out.querySelectorAll('#metrics button').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.m === id));
+      if (points.length) chart($('chart'), points, METRICS.find((m) => m.id === id)!, log.from, log.time);
+    };
+    out.querySelectorAll('#metrics button').forEach((b) => b.addEventListener('click', () => pick((b as HTMLElement).dataset.m!)));
+    pick('tps');
+
+    // list with filters
+    const state = { src: 'all', lvl: { info: true, warn: true, error: true } as Record<string, boolean>, q: '', focus: null as null | [number, number], shown: 400 };
+    const paint = () => {
+      out.querySelectorAll('#src button').forEach((b) => b.classList.toggle('on', (b as HTMLElement).dataset.s === state.src));
+      out.querySelectorAll('#lvl button').forEach((b) => b.classList.toggle('on', state.lvl[(b as HTMLElement).dataset.l!]));
+      const q = state.q.toLowerCase();
+      const list = entries.filter((e) => (state.src === 'all' || e.kind === state.src) && (e.kind !== 'console' || state.lvl[e.level])
+        && (!state.focus || (e.time >= state.focus[0] && e.time < state.focus[1]))
+        && (!q || e.text.toLowerCase().includes(q) || (e.source ?? '').toLowerCase().includes(q)));
+      const vis = list.slice(Math.max(0, list.length - state.shown));
+      const lines = $('lines');
+      lines.innerHTML = (list.length > vis.length ? `<button class="btn small more" id="older">${list.length - vis.length} ältere Einträge anzeigen</button>` : '')
+        + (vis.map((e) => `<div class="line ${e.level}"><span class="t">${clock(e.time)}</span>${e.kind === 'event' ? `<span class="s" style="color:${esc(e.color)}">${esc(e.source)}</span>` : ''}<span class="x">${esc(e.text)}</span></div>`).join('')
+          || '<p class="muted">Keine Einträge für diesen Filter.</p>');
+      lines.querySelector('#older')?.addEventListener('click', () => { state.shown += 600; paint(); });
+      const un = $('unfocus');
+      un.hidden = !state.focus;
+      if (state.focus) un.textContent = `${clock(state.focus[0])}-${clock(state.focus[1])} ✕`;
+    };
+    out.querySelectorAll('#src button').forEach((b) => b.addEventListener('click', () => { state.src = (b as HTMLElement).dataset.s!; paint(); }));
+    out.querySelectorAll('#lvl button').forEach((b) => b.addEventListener('click', () => { const l = (b as HTMLElement).dataset.l!; state.lvl[l] = !state.lvl[l]; paint(); }));
+    $('q').addEventListener('input', (e) => { state.q = (e.target as HTMLInputElement).value; paint(); });
+    $('unfocus').addEventListener('click', () => { state.focus = null; paint(); });
+
+    // activity strip
+    const N = 90;
+    const slices = Array.from({ length: N }, () => ({ info: 0, warn: 0, error: 0, event: 0 } as Record<string, number>));
+    for (const e of entries) {
+      const i = Math.min(N - 1, Math.max(0, Math.floor(((e.time - log.from) / span) * N)));
+      slices[i][['warn', 'error', 'event'].includes(e.level) ? e.level : 'info']++;
+    }
+    const most = Math.max(1, ...slices.map((s) => s.info + s.warn + s.error + s.event));
+    const strip = $('strip');
+    strip.innerHTML = slices.map((s, i) => {
+      const total = s.info + s.warn + s.error + s.event;
+      const cls = s.error ? 'err' : s.warn ? 'wrn' : s.event ? 'evt' : '';
+      return `<button class="${cls}" data-i="${i}" style="height:${total ? 18 + (total / most) * 82 : 4}%" title="${clock(log.from + (span * i) / N)} · ${s.error} Fehler, ${s.warn} Warnungen, ${s.event} Ereignisse, ${s.info} Info"></button>`;
+    }).join('') + `<span class="mark" style="left:calc(${((log.time - log.from) / span) * 100}% - 3px)"></span>`;
+    strip.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+      const i = Number((b as HTMLElement).dataset.i);
+      const a = log.from + (span * i) / N;
+      state.focus = state.focus && state.focus[0] === a ? null : [a, log.from + (span * (i + 1)) / N];
+      strip.querySelectorAll('button').forEach((x) => x.classList.toggle('sel', !!state.focus && x === b));
+      state.shown = 400;
+      paint();
+    }));
+    paint();
+    out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  showKeys().then(fromHash);
+  addEventListener('hashchange', fromHash);
+</script>
