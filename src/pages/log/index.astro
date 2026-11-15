@@ -9,7 +9,7 @@ import Base from '../../layouts/Base.astro';
   <link rel="stylesheet" href="/log/ticket-log-viewer.css" />
   <section class="wrap tl">
     <h1>Ticket-Log</h1>
-    <p class="lead">Öffnet Logs, die MRadmin-Server beim Weiterleiten eines Tickets für MRtechnology verschlüsseln. Alles bleibt in diesem Browser - nichts wird hochgeladen.</p>
+    <p class="lead">Öffnet Ticket-Logs von MRadmin: die ZIP-Datei aus der Weboberfläche (für Server-Teams) und Logs, die beim Weiterleiten für MRtechnology verschlüsselt wurden. Alles bleibt in diesem Browser - nichts wird hochgeladen.</p>
 
     <div class="panel key" id="key-panel">
       <div id="key-none">
@@ -29,7 +29,7 @@ import Base from '../../layouts/Base.astro';
     </div>
 
     <div class="panel drop" id="drop">
-      <p><b>Log-Datei hierher ziehen</b> oder <label class="link">auswählen<input type="file" id="log-file" accept=".json,application/json" hidden /></label></p>
+      <p><b>Log-Datei (.zip oder .json) hierher ziehen</b> oder <label class="link">auswählen<input type="file" id="log-file" accept=".zip,.json,application/zip,application/json" hidden /></label></p>
       <p class="muted small" id="src-note" hidden></p>
       <p class="err" id="log-err" hidden></p>
     </div>
@@ -156,7 +156,7 @@ import Base from '../../layouts/Base.astro';
       const raw = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, key, b64(sealed.key));
       const aes = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
       const gz = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(sealed.iv) }, aes, b64(sealed.data));
-      const text = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+      const text = await unpack(new Uint8Array(gz), 'gzip');
       pending = null;
       render(JSON.parse(text));
     } catch (e) {
@@ -164,12 +164,89 @@ import Base from '../../layouts/Base.astro';
     }
   }
 
+  // ------------------------------------------------------------------ plain logs and ZIP files
+  // A file can come from anyone: size limits, only the first .json in a ZIP, nothing is ever run - the view only
+  // shows data (texts escaped, pictures only as PNG, colours only as #rrggbb).
+  const MAX_FILE = 110 * 1024 * 1024;
+  const MAX_JSON = 400 * 1024 * 1024;
+
+  const inflate = (data: Uint8Array) => unpack(data, 'deflate-raw');
+
+  /** Decompresses with a size limit (a crafted file could otherwise fill the memory). */
+  async function unpack(data: Uint8Array, format: CompressionFormat): Promise<string> {
+    const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream(format));
+    const reader = stream.getReader();
+    const parts: Uint8Array[] = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > MAX_JSON) {
+        await reader.cancel();
+        throw new Error('Die Datei ist zu groß.');
+      }
+      parts.push(value);
+    }
+    return new TextDecoder().decode(await new Blob(parts).arrayBuffer());
+  }
+
+  /** The first .json file in a ZIP (only "stored" and "deflate", like MRadmin writes them). */
+  async function unzip(buf: ArrayBuffer): Promise<string> {
+    const v = new DataView(buf);
+    let end = -1;
+    for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) {
+      if (v.getUint32(i, true) === 0x06054b50) { end = i; break; }
+    }
+    if (end < 0) throw new Error('Die ZIP-Datei ist beschädigt.');
+    let p = v.getUint32(end + 16, true);
+    const count = v.getUint16(end + 10, true);
+    for (let n = 0; n < count && p + 46 <= buf.byteLength; n++) {
+      if (v.getUint32(p, true) !== 0x02014b50) break;
+      const method = v.getUint16(p + 10, true);
+      const csize = v.getUint32(p + 20, true);
+      const usize = v.getUint32(p + 24, true);
+      const nameLen = v.getUint16(p + 28, true);
+      const extraLen = v.getUint16(p + 30, true);
+      const commentLen = v.getUint16(p + 32, true);
+      const local = v.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(new Uint8Array(buf, p + 46, nameLen));
+      p += 46 + nameLen + extraLen + commentLen;
+      if (!name.toLowerCase().endsWith('.json') || name.includes('/')) continue;
+      if (usize > MAX_JSON) throw new Error('Die Datei ist zu groß.');
+      if (v.getUint32(local, true) !== 0x04034b50) throw new Error('Die ZIP-Datei ist beschädigt.');
+      const start = local + 30 + v.getUint16(local + 26, true) + v.getUint16(local + 28, true);
+      if (start + csize > buf.byteLength) throw new Error('Die ZIP-Datei ist beschädigt.');
+      const data = new Uint8Array(buf, start, csize);
+      if (method === 0) return new TextDecoder().decode(data);
+      if (method === 8) return inflate(data);
+      throw new Error('Diese ZIP-Kompression wird nicht unterstützt.');
+    }
+    throw new Error('In der ZIP-Datei ist kein Log.');
+  }
+
   async function fromFile(file?: File) {
     if (!file) return;
+    fail('log-err', '');
     try {
-      await open(JSON.parse(await file.text()));
-    } catch {
-      fail('log-err', 'Die Datei ist kein gültiges JSON.');
+      if (file.size > MAX_FILE) throw new Error('Die Datei ist zu groß (höchstens 100 MB).');
+      const buf = await file.arrayBuffer();
+      const head = new Uint8Array(buf, 0, Math.min(2, buf.byteLength));
+      const text = head[0] === 0x50 && head[1] === 0x4b ? await unzip(buf) : new TextDecoder().decode(buf);
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error('Die Datei ist kein gültiges Log.');
+      }
+      if (data?.format === 'mrtechnology-ticket-log') {
+        pending = null;
+        await render(data);
+      } else {
+        await open(data);
+      }
+    } catch (e) {
+      fail('log-err', (e as Error).message || 'Die Datei lässt sich nicht öffnen.');
     }
   }
   $('log-file').addEventListener('change', (e) => fromFile((e.target as HTMLInputElement).files?.[0]));
