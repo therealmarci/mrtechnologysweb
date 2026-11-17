@@ -148,6 +148,25 @@ const ICONS: Record<string, () => Grid> = {
     ]),
   swords: () => overlay(mirrorX(sword()), sword()),
   pickaxe,
+  deck: () =>
+    fromRows([
+      '................',
+      '................',
+      '.SSSSSSSSSSSSSS.',
+      '.SkkkkkkkkkkkkS.',
+      '.SkggkkcckkyykS.',
+      '.SkGGkkCCkkYYkS.',
+      '.SkkkkkkkkkkkkS.',
+      '.SkrrkklllkiikS.',
+      '.SkRRkklllkIIkS.',
+      '.SkkkkkkkkkkkkS.',
+      '.SSSSSSSSSSSSSS.',
+      '.....SSSSSS.....',
+      '....SSSSSSSS....',
+      '................',
+      '................',
+      '................',
+    ]),
   hourglass: () =>
     fromRows([
       '..BBBBBBBBBBBB..',

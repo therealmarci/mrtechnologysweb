@@ -178,6 +178,19 @@ export const PROJECTS: Project[] = [
  * Fehlermelden (die Seiten bauen nur PROJECTS). Mit dem ersten Release nach PROJECTS verschieben.
  */
 export const COMING_SOON: Project[] = [
+  {
+    slug: 'mrstreamdeck',
+    name: 'MRstreamdeck',
+    repo: 'mrstreamdeck',
+    icon: 'deck',
+    kind: { de: 'Stream-Deck-Plugin', en: 'Stream Deck plugin' },
+    tagline: {
+      de: 'MRadmin auf dem Stream Deck: Spieler, Tickets, Chunkloader, Duelle, Leistung und Neustarts auf deinen Tasten.',
+      en: 'MRadmin on the Stream Deck: players, tickets, chunk loaders, duels, performance and restarts on your keys.',
+    },
+    docs: [GUIDE, DEV],
+    variants: SINGLE,
+  },
 ];
 
 export const repoUrl = (p: Project) => `https://github.com/${SITE.owner}/${p.repo}`;
